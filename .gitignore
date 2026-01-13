@@ -1,0 +1,32 @@
+# Build outputs
+build/
+.gradle/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Gradle wrapper (keep the jar)
+# We want to keep gradle wrapper
+
+# Test outputs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
