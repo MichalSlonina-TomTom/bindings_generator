@@ -38,11 +38,11 @@ src/
         protobuf_helpers.cpp
         NativeModelMapper.kt
     junction-view-engine/
-      proto/             # (currently empty)
+      proto/             # junction_view_request.proto, junction_view_information.proto
       expected/          # Reference output for junction-view-engine
         protobuf_helpers.hpp
         protobuf_helpers.cpp
-        NativeJunctionViewClient.kt
+        NativeJunctionViewClient.kt  # hand-crafted; mapper functions still embedded here
 ```
 
 ## Core Data Model (`ProtoParser.kt`)
@@ -102,4 +102,30 @@ data class ParsedEnumValue(val name: String, val number: Int)
 - `protoc` is invoked at runtime (not at build time); the generated `.bin` descriptor is a temp file that is deleted after parsing.
 - Copyright header uses `© 2022 TomTom NV` in reference expected files; generated files use `Copyright (C) 2022 TomTom NV`.
 - Do not add trailing whitespace to any generated lines — `ExactOutputComparisonTest` validates this.
+
+## Known Limitations & Planned Work
+
+A detailed analysis of what needs to change before the generator can be applied to the
+**junction-view-engine** use case is captured in:
+
+> `docs/adr/20260303_adaptations_needed_for_junction_view_engine.md`
+
+Key gaps identified there (do not implement without reading the full ADR):
+
+| # | Area | Gap |
+|---|------|-----|
+| 1 | Kotlin | Mapper functions are still embedded in `NativeJunctionViewClient`; need extraction to `NativeModelMapper.kt` |
+| 2 | C++ | Namespace is deep/nested (`tomtom::sdk::bindings::…`); generator hard-codes flat `protobuf_helpers` |
+| 3 | C++ | Function names are PascalCase (`FromProto`/`ToProto`); generator hard-codes camelCase (`toNative`/`toProto`) |
+| 4 | C++ | Header guard is `#pragma once`; generator always emits `#ifndef`/`#define`/`#endif` |
+| 5 | C++ | Extra native SDK `#include` lines cannot currently be injected by the caller |
+| 6 | C++ | Native helper structs (`NativeJunctionViewRequestParams`) are not derivable from proto; treat as hand-written scaffolding |
+| 7 | Kotlin | JNI boundary uses `ByteArray` serialisation, not typed proto objects |
+| 8 | Kotlin | Unrecognised enum values should throw, not silently fall back |
+| 9 | Both | Copyright year/symbol is hard-coded (`Copyright (C) 2022`); junction-view-engine uses `© 2024` |
+| 10 | Both | `optional` scalar fields need `has_*()` guards (C++) and nullable `?.let` wrappers (Kotlin) |
+| 11 | Both | `oneof` fields are not recognised by `ProtoParser` or either generator |
+| 12 | C++ | Nested enum type names must use protobuf's underscore-mangled form (`JunctionViewError_ErrorType`) |
+
+The recommended implementation order is also documented in the ADR.
 

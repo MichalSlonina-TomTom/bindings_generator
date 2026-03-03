@@ -1,0 +1,40 @@
+/*
+ * © 2024 TomTom NV. All rights reserved.
+ *
+ * This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
+ * used for internal evaluation purposes or commercial use strictly subject to separate
+ * license agreement between you and TomTom NV. If you are the licensee, you are only permitted
+ * to use this software in accordance with the terms of your license agreement. If you are
+ * not the licensee, you are not authorized to use this software in any manner and should
+ * immediately return or destroy it.
+ */
+
+syntax = "proto3";
+
+package com.tomtom.sdk.navigation.junctionview.protos;
+
+message JunctionViewRequest {
+  /* The id of the route. */
+  string route_id = 1;
+  /* The map matched part of a route. */
+  RouteWindow route_window = 2;
+  /* The route offset of the instruction for which the junction view will be generated. */
+  int32 instruction_offset_in_meters = 3;
+}
+
+message RouteWindow {
+  /* A list of map matched arcs intersecting with this route window */
+  repeated RouteArc route_arcs = 3;
+}
+
+message RouteArc {
+  /* A unique map key of the arc */
+  uint64 arc_key = 1;
+  /* Offset to the tail of the arc, measured along the route, in centimeters */
+  int32 tail_offset_on_route_in_centimeters = 2;
+  /* Offset on arc of the arrival position, which takes place at the last arc of the route.
+     For all other arcs this field will be null */
+  optional int32 arrival_offset_on_arc_in_centimeters = 3;
+  /* Unified map reference feature version id */
+  int64 feature_version = 4;
+}

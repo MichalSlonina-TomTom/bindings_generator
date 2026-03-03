@@ -1,0 +1,71 @@
+/*
+ * © 2024 TomTom NV. All rights reserved.
+ *
+ * This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
+ * used for internal evaluation purposes or commercial use strictly subject to separate
+ * license agreement between you and TomTom NV. If you are the licensee, you are only permitted
+ * to use this software in accordance with the terms of your license agreement. If you are
+ * not the licensee, you are not authorized to use this software in any manner and should
+ * immediately return or destroy it.
+ */
+
+syntax = "proto3";
+
+package com.tomtom.sdk.navigation.junctionview.protos;
+
+message JunctionViewInformationList {
+  repeated JunctionViewInformation junction_view_information_list = 1;
+}
+/** Indicates the type of a junction view. */
+enum JunctionViewType {
+  kJunction  = 0;
+  kSignboard = 1;
+  kEtc       = 2;
+}
+
+/**
+ * Indicates whether the junction view is intended for daylight or night viewing or whether it can
+ * be generally used.
+ */
+enum JunctionViewDaylightType {
+  kDay    = 0;
+  kNight  = 1;
+  kAlways = 2;
+}
+
+/** Holds details of a specific junction view. */
+message JunctionViewInformation {
+  /** Array of bytes that represents a PNG image. */
+  bytes data_png = 1;
+
+  /** The type of the junction view. */
+  JunctionViewType type = 2;
+
+  /** Indicates when the junction view should be used. */
+  JunctionViewDaylightType daylight_type = 3;
+
+  /** Distance from the start of the route to the start of the junction. */
+  int32 start_route_offset_in_centimeters = 4;
+
+  /** Distance from the start of the route to the end of the junction. */
+  int32 end_route_offset_in_centimeters = 5;
+}
+
+/** Errors during junction view generation. */
+message JunctionViewError {
+  enum ErrorType {
+    kArcVersionMismatch = 0;
+    kMoreArcsRequired = 1;
+  }
+
+  ErrorType errorType = 1;
+  string    message   = 2;
+}
+
+/** Outcome of a junction view generation. It can be either junction views or an error. */
+message JunctionViewResult {
+  oneof Result {
+    JunctionViewInformationList junction_views = 1;
+    JunctionViewError error = 2;
+  }
+}
