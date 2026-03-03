@@ -322,5 +322,69 @@ class ExactOutputComparisonTest {
                 "Braces should match in implementation for $protoFileName")
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Junction-view-engine exact output comparison
+    // -------------------------------------------------------------------------
+
+    private fun jveProtoDir(): File =
+        File(javaClass.getResource("/junction-view-engine/proto/junction_view_information.proto")!!.file).parentFile
+
+    private fun jveExpectedDir(): File =
+        File(javaClass.getResource("/junction-view-engine/expected/protobuf_helpers.hpp")!!.file).parentFile
+
+    private fun generateJveFiles(outDir: File): Triple<File, File, File> {
+        val protoFile = File(jveProtoDir(), "junction_view_information.proto")
+        val parser = ProtoParser()
+        val parsedFile = parser.parseProtoFile(protoFile, listOf(jveProtoDir()))
+
+        val headerFile = File(outDir, "protobuf_helpers.hpp")
+        val implFile = File(outDir, "protobuf_helpers.cpp")
+        val cppGenerator = CppGenerator()
+        cppGenerator.generateHeader(parsedFile, headerFile)
+        cppGenerator.generateImplementation(parsedFile, headerFile, implFile)
+
+        val kotlinGenerator = KotlinGenerator()
+        kotlinGenerator.generateMapper(parsedFile, outDir)
+        val kotlinFile = outDir.walkTopDown().find { it.name == "NativeModelMapper.kt" }!!
+
+        return Triple(headerFile, implFile, kotlinFile)
+    }
+
+    @Test
+    fun `junction-view-engine protobuf_helpers_hpp matches expected output`() {
+        val expectedDir = jveExpectedDir()
+        val (header, _, _) = generateJveFiles(tempDir)
+
+        val expected = File(expectedDir, "protobuf_helpers.hpp").readText()
+        val actual = header.readText()
+
+        assertEquals(expected, actual,
+            "Generated protobuf_helpers.hpp does not match junction-view-engine expected reference")
+    }
+
+    @Test
+    fun `junction-view-engine protobuf_helpers_cpp matches expected output`() {
+        val expectedDir = jveExpectedDir()
+        val (_, impl, _) = generateJveFiles(tempDir)
+
+        val expected = File(expectedDir, "protobuf_helpers.cpp").readText()
+        val actual = impl.readText()
+
+        assertEquals(expected, actual,
+            "Generated protobuf_helpers.cpp does not match junction-view-engine expected reference")
+    }
+
+    @Test
+    fun `junction-view-engine NativeModelMapper_kt matches expected output`() {
+        val expectedDir = jveExpectedDir()
+        val (_, _, kotlinFile) = generateJveFiles(tempDir)
+
+        val expected = File(expectedDir, "NativeModelMapper.kt").readText()
+        val actual = kotlinFile.readText()
+
+        assertEquals(expected, actual,
+            "Generated NativeModelMapper.kt does not match junction-view-engine expected reference")
+    }
 }
 
