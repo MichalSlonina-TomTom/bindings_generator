@@ -210,7 +210,7 @@ needed for this problem.  Update `NativeJunctionViewClient` to call `.toByteArra
 
 ---
 
-## Problem 8 — Kotlin mapper uses `UNRECOGNIZED` as an error-throwing default
+## Problem 8 — Kotlin mapper silently falls back on unrecognised enum values
 
 In text-generation, the `else ->` branch of generated `when` blocks silently falls back to a
 default proto value:
@@ -224,10 +224,23 @@ ProtoJunctionViewType.UNRECOGNIZED ->
     throw IllegalArgumentException("Unexpected junction view type $this.")
 ```
 
-`KotlinGenerator.kt` always emits the silent fallback.
+`KotlinGenerator.kt` always emits the silent fallback.  Silent fallbacks hide bugs — a value that
+cannot be mapped should never propagate silently as a default.
 
-**Required action:** Add a generator option to emit a throwing `else` branch instead of a silent
-fallback, controlled per-enum or globally.
+### Decision
+
+**Always throw on `UNRECOGNIZED`.**  The generator should emit a throwing `else` branch for every
+enum `when` block, both in existing text-generation output and in all future use cases.  The
+silent fallback in the current text-generation output is a bug that this change will fix as a
+side-effect.
+
+```kotlin
+else -> throw IllegalArgumentException("Unexpected value $this.")
+```
+
+**Required action:** Update `KotlinGenerator.kt` to emit a throwing `else` branch in all enum
+`when` blocks.  Update the text-generation reference file
+`src/test/resources/text-generation/expected/NativeModelMapper.kt` to reflect the new behaviour.
 
 ---
 
@@ -347,6 +360,7 @@ nested enum types in `set_*()` calls; add a test case covering this pattern.
 6. **Treat native structs as scaffolding** outside generated files for now (Problem 6).
 7. **Adopt typed-object mapper (Option A)** — no generator changes needed; update
    `NativeJunctionViewClient` to own `.toByteArray()` / `parseFrom()` calls (Problem 7).
-8. **Document and defer** the throwing-enum question until structural issues above are resolved
-   (Problem 8).
+8. **Always throw on `UNRECOGNIZED`** — update `KotlinGenerator.kt` to emit a throwing `else`
+   branch in all enum `when` blocks; update the text-generation reference
+   `NativeModelMapper.kt` accordingly (Problem 8).
 
