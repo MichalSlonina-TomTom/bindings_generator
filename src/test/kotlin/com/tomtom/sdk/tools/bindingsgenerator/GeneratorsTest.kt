@@ -60,7 +60,7 @@ class CppGeneratorTest {
         assertTrue(content.contains("toProto"))
 
         // Should have copyright
-        assertTrue(content.contains("Copyright"))
+        assertTrue(content.contains("TomTom"))
     }
 
     @Test
@@ -105,7 +105,7 @@ class CppGeneratorTest {
         assertTrue(content.contains("toProto"))
 
         // Should have copyright
-        assertTrue(content.contains("Copyright"))
+        assertTrue(content.contains("TomTom"))
     }
 
     @Test
@@ -225,7 +225,7 @@ class KotlinGeneratorTest {
         assertTrue(content.contains("toNative"))
 
         // Should have copyright
-        assertTrue(content.contains("Copyright"))
+        assertTrue(content.contains("TomTom"))
 
         // Should have suppress annotation
         assertTrue(content.contains("@Suppress") || content.contains("Suppress"))

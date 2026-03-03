@@ -1,10 +1,11 @@
 package com.tomtom.sdk.tools.bindingsgenerator
 
 import java.io.File
+import java.time.Year
 
-private val COPYRIGHT_HEADER = """
+private fun copyrightHeader() = """
 /*
- * Copyright (C) 2022 TomTom NV. All rights reserved.
+ * © ${Year.now().value} TomTom NV. All rights reserved.
  *
  * This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
  * used for internal evaluation purposes or commercial use strictly subject to separate
@@ -26,7 +27,7 @@ class CppGenerator {
             .replace('-', '_')
 
         val content = buildString {
-            append(COPYRIGHT_HEADER)
+            append(copyrightHeader())
             appendLine()
             appendLine("#ifndef $guardName")
             appendLine("#define $guardName")
@@ -58,7 +59,7 @@ class CppGenerator {
 
     fun generateImplementation(parsedFile: ParsedProtoFile, headerFile: File, outputFile: File) {
         val content = buildString {
-            append(COPYRIGHT_HEADER)
+            append(copyrightHeader())
             appendLine()
             appendLine("#include \"${headerFile.name}\"")
             appendLine()

@@ -112,7 +112,7 @@ class ExactOutputComparisonTest {
             "Should have toNative functions")
         assertTrue(generatedContent.contains("toProto"),
             "Should have toProto functions")
-        assertTrue(generatedContent.contains("Copyright"),
+        assertTrue(generatedContent.contains("TomTom"),
             "Should have copyright header")
         assertTrue(generatedContent.contains("AUTO-GENERATED"),
             "Should have auto-generated notice")
@@ -146,7 +146,7 @@ class ExactOutputComparisonTest {
             "Should implement toNative functions")
         assertTrue(implContent.contains("toProto"),
             "Should implement toProto functions")
-        assertTrue(implContent.contains("Copyright"),
+        assertTrue(implContent.contains("TomTom"),
             "Should have copyright header")
     }
 
@@ -176,7 +176,7 @@ class ExactOutputComparisonTest {
             "Should have toProto extension functions")
         assertTrue(kotlinContent.contains("fun") && kotlinContent.contains("toNative"),
             "Should have toNative extension functions")
-        assertTrue(kotlinContent.contains("Copyright"),
+        assertTrue(kotlinContent.contains("TomTom"),
             "Should have copyright header")
         assertTrue(kotlinContent.contains("AUTO-GENERATED"),
             "Should have auto-generated notice")

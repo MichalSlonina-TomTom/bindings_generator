@@ -204,9 +204,9 @@ class BindingsGeneratorIntegrationTest {
         cppGenerator.generateImplementation(parsedFile, headerFile, implFile)
 
         // Then: Both should have copyright
-        assertTrue(headerFile.readText().contains("Copyright"),
+        assertTrue(headerFile.readText().contains("TomTom"),
             "Header should have copyright")
-        assertTrue(implFile.readText().contains("Copyright"),
+        assertTrue(implFile.readText().contains("TomTom"),
             "Implementation should have copyright")
         assertTrue(headerFile.readText().contains("AUTO-GENERATED"),
             "Header should indicate auto-generation")
@@ -234,7 +234,7 @@ class BindingsGeneratorIntegrationTest {
         val kotlinFile = generatedFiles.first()
         val content = kotlinFile.readText()
         assertTrue(content.contains("package"), "Should have package declaration")
-        assertTrue(content.contains("Copyright"), "Should have copyright")
+        assertTrue(content.contains("TomTom"), "Should have copyright")
         assertTrue(content.contains("AUTO-GENERATED"), "Should indicate auto-generation")
     }
 

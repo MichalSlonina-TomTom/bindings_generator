@@ -7,9 +7,10 @@ import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.io.File
+import java.time.Year
 
-private val COPYRIGHT_HEADER = """
-Copyright (C) 2022 TomTom NV. All rights reserved.
+private fun copyrightHeader() = """
+© ${Year.now().value} TomTom NV. All rights reserved.
 
 This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
 used for internal evaluation purposes or commercial use strictly subject to separate
@@ -28,7 +29,7 @@ class KotlinGenerator {
         val fileName = "NativeModelMapper"
 
         val fileSpec = FileSpec.builder(kotlinPackage, fileName)
-            .addFileComment(COPYRIGHT_HEADER)
+            .addFileComment(copyrightHeader())
             .addAnnotation(
                 AnnotationSpec.builder(Suppress::class)
                     .addMember("%S", "detekt:TooManyFunctions")
