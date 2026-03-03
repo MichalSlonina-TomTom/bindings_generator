@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -373,6 +374,45 @@ class KotlinGeneratorTest {
         assertTrue(content.contains("kColorRed") || content.contains("RED"))
         assertTrue(content.contains("kColorBlue") || content.contains("BLUE"))
         assertTrue(content.contains("kColorGreen") || content.contains("GREEN"))
+        // Should throw on unrecognised values, not silently fall back
+        assertTrue(content.contains("throw"), "Should throw on unrecognised enum values")
+        assertTrue(content.contains("IllegalArgumentException"), "Should throw IllegalArgumentException")
+    }
+
+    @Test
+    fun `test Kotlin generator throws on unrecognised enum values`() {
+        // Given: An enum
+        val parsedFile = ParsedProtoFile(
+            packageName = "com.test",
+            protoPackage = "com.test",
+            messages = emptyList(),
+            enums = listOf(
+                ParsedEnum(
+                    name = "Status",
+                    fullName = "com.test.Status",
+                    values = listOf(
+                        ParsedEnumValue("kStatusActive", 0),
+                        ParsedEnumValue("kStatusInactive", 1)
+                    )
+                )
+            )
+        )
+
+        // When: We generate Kotlin
+        val generator = KotlinGenerator()
+        generator.generateMapper(parsedFile, tempDir)
+
+        val kotlinFile = tempDir.walkTopDown().find { it.name == "NativeModelMapper.kt" }!!
+        val content = kotlinFile.readText()
+
+        // Then: Both toProto and toNative should throw, not silently fall back
+        assertTrue(content.contains("throw"), "else branch must throw")
+        assertTrue(content.contains("IllegalArgumentException"), "must throw IllegalArgumentException")
+        // Must NOT have a silent fallback to a default enum value
+        assertFalse(
+            content.contains("else -> Status.") || content.contains("else -> com.test.Status."),
+            "Must not silently fall back to a default enum value"
+        )
     }
 }
 

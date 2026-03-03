@@ -94,7 +94,7 @@ class KotlinGenerator {
                     val nativeValue = convertEnumValueToNative(value.name, enum.name)
                     addStatement("%T.%L -> %T.%L", nativeClassName, nativeValue, protoClassName, value.name)
                 }
-                addStatement("else -> %T.%L", protoClassName, enum.values.first().name)
+                addStatement("else -> throw %T(%S + this)", IllegalArgumentException::class, "Unexpected value ")
             }
             .endControlFlow()
             .build()
@@ -117,7 +117,7 @@ class KotlinGenerator {
                     val nativeValue = convertEnumValueToNative(value.name, enum.name)
                     addStatement("%T.%L -> %T.%L", protoClassName, value.name, nativeClassName, nativeValue)
                 }
-                addStatement("else -> %T.%L", nativeClassName, convertEnumValueToNative(enum.values.first().name, enum.name))
+                addStatement("else -> throw %T(%S + this)", IllegalArgumentException::class, "Unexpected value ")
             }
             .endControlFlow()
             .build()
