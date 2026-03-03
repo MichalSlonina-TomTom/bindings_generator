@@ -59,10 +59,7 @@ namespace internal {
 The generator (`CppGenerator.kt`) currently always emits `namespace protobuf_helpers { … }`.
 It has no concept of a configurable or multi-level output namespace.
 
-**Required action:** Add a namespace configuration option (e.g. a list of namespace segments or a
-single dotted string) that the generator uses to emit nested `namespace X {` / `} // namespace X`
-blocks.  The default should remain `protobuf_helpers` to preserve backward compatibility with
-text-generation.
+**Required action:** Use namespace from protofile to make it simpler.
 
 ---
 
@@ -82,8 +79,7 @@ ToProto(...)
 
 `CppGenerator.kt` hard-codes `toNative` and `toProto`.
 
-**Required action:** Make the C++ function name style configurable (camelCase vs PascalCase), or
-at minimum introduce a naming strategy that can be passed to `CppGenerator`.
+**Required action:** Use PascalCase everywhere.
 
 ---
 
@@ -104,8 +100,7 @@ Junction-view-engine expected header:
 
 `CppGenerator.generateHeader()` always emits the `#ifndef` guard.
 
-**Required action:** Add a header-guard style option (`PRAGMA_ONCE` vs `IFNDEF_GUARD`) to
-`CppGenerator`.
+**Required action:** Use pragma once everywhere.
 
 ---
 
@@ -121,8 +116,7 @@ The junction-view-engine header includes:
 These native SDK includes cannot be inferred purely from a `.proto` file.  The generator currently
 derives `#include` statements only from the proto package and file names.
 
-**Required action:** Support extra/user-supplied `#include` lines via a configuration option, so
-callers can inject native SDK includes that the generator cannot discover on its own.
+**Required action:** Support extra/user-supplied `#include` lines via a generator configuration json.
 
 ---
 
