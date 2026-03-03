@@ -159,9 +159,54 @@ fun ByteArray.fromProto(): List<JunctionViewInformation>?  // deserialises from 
 `KotlinGenerator.kt` always generates typed-object extension functions.  It does not know about
 the `ByteArray` serialisation pattern.
 
-**Required action:** Decide whether the Kotlin mapper for junction-view-engine should mirror
-text-generation (typed objects, no JNI byte boundary) or preserve the `ByteArray` boundary.  If
-the latter, the generator needs a "JNI serialisation mode" flag.
+### Option A — Typed objects (mirror text-generation)
+
+```kotlin
+fun JunctionViewRequest.toProto(): ProtoJunctionViewRequest
+fun ProtoJunctionViewResult.toNative(): List<JunctionViewInformation>?
+```
+
+Pros:
+- The generator already knows how to emit this pattern — zero new code paths needed.
+- Separation of concerns: serialisation to bytes is a transport detail that belongs in
+  `NativeJunctionViewClient`, not in the mapper.
+- Typed mappers can be unit-tested without JNI or byte-buffer manipulation.
+- Consistent with text-generation: one pattern across all use cases keeps the generator simpler
+  and its output predictable.
+
+The byte serialisation becomes the explicit responsibility of the caller:
+
+```kotlin
+// inside NativeJunctionViewClient — hand-written, not generated
+val bytes = request.toProto().toByteArray()
+val result = ProtoJunctionViewResult.parseFrom(responseBytes).toNative()
+```
+
+### Option B — `ByteArray` JNI boundary (preserve current pattern)
+
+```kotlin
+fun JunctionViewRequest.toProto(): ByteArray
+fun ByteArray.fromProto(): List<JunctionViewInformation>?
+```
+
+Pros:
+- Matches what `NativeJunctionViewClient` currently does — no changes to the client.
+
+Cons:
+- Requires a new "JNI serialisation mode" flag in the generator.
+- Conflates type conversion with serialisation inside the mapper.
+- Harder to unit-test.
+- Diverges from text-generation, adding a second code path to maintain.
+
+### Decision
+
+**Option A is adopted.**  The mapper's responsibility is type conversion only.
+`NativeJunctionViewClient` is responsible for calling `.toByteArray()` and `parseFrom()` at the
+JNI boundary.
+
+**Required action:** Generate typed-object extension functions (Option A) — no generator changes
+needed for this problem.  Update `NativeJunctionViewClient` to call `.toByteArray()` /
+`parseFrom()` explicitly rather than delegating serialisation to the mapper.
 
 ---
 
@@ -300,6 +345,8 @@ nested enum types in `set_*()` calls; add a test case covering this pattern.
    namespace segments, naming style (camelCase vs PascalCase), header-guard style, extra includes,
    and copyright year — rather than adding individual CLI flags one at a time (Problems 2–5, 9).
 6. **Treat native structs as scaffolding** outside generated files for now (Problem 6).
-7. **Document and defer** the `ByteArray` JNI mode and throwing-enum questions until the
-   structural issues above are resolved (Problems 7–8).
+7. **Adopt typed-object mapper (Option A)** — no generator changes needed; update
+   `NativeJunctionViewClient` to own `.toByteArray()` / `parseFrom()` calls (Problem 7).
+8. **Document and defer** the throwing-enum question until structural issues above are resolved
+   (Problem 8).
 
