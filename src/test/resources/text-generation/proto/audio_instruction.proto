@@ -1,0 +1,559 @@
+/*
+ * Copyright (C) 2022 TomTom NV. All rights reserved.
+ *
+ * This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
+ * used for internal evaluation purposes or commercial use strictly subject to separate
+ * license agreement between you and TomTom NV. If you are the licensee, you are only permitted
+ * to use this software in accordance with the terms of your license agreement. If you are
+ * not the licensee, you are not authorized to use this software in any manner and should
+ * immediately return or destroy it.
+ */
+
+syntax = "proto3";
+
+package com.tomtom.sdk.navigation.verbalmessagegeneration.infrastructure.protos;
+
+import "language.proto";
+
+/**
+ * Side of the road on which an itinerary point can be found.
+ */
+enum ItineraryPointSide {
+  /** The side is not determined. */
+  kItineraryPointSideUnknown = 0;
+
+  /** Itinerary point is on the left side. */
+  kItineraryPointSideLeft = 1;
+
+  /** Itinerary point is on the right side. */
+  kItineraryPointSideRight = 2;
+}
+
+/** Driving side on the road. */
+enum DrivingSide {
+  /** Left-hand traffic. */
+  kDrivingSideLeft = 0;
+
+  /** Right-hand traffic. */
+  kDrivingSideRight = 1;
+}
+
+/** The type of a turn-by-turn guidance instruction. */
+enum AudioInstructionType {
+  /** Arrived at destination */
+  kInstructionTypeArrival = 0;
+
+  /** Arrived at intermediate destination */
+  kInstructionTypeWaypoint = 1;
+
+  /**
+   * Start driving
+   */
+  kInstructionTypeDeparture = 2;
+
+  /** Instruction indicates the exit from a roundabout. */
+  kInstructionTypeExitRoundabout = 3;
+
+  /** Instruction is a roundabout guidance instruction. */
+  kInstructionTypeRoundabout = 4;
+
+  /** Instruction is a turn in a road junction. */
+  kInstructionTypeTurn = 5;
+
+  /**
+   * Legally forced left and right
+   */
+  kInstructionTypeObligatoryTurn = 6;
+
+  /**
+   * Instruction indicates a highway exit.
+   */
+  kInstructionTypeExit = 7;
+
+  /** Instruction is a fork in a bifurcation. */
+  kInstructionTypeFork = 8;
+
+  /**
+   * Instruction indicates a switch to another highway.
+   */
+  kInstructionTypeSwitchHighway = 9;
+
+  /**
+   * Instruction indicates about approaching high speed traffic on a highway/expressway merge.
+   */
+  kInstructionTypeMerge = 10;
+
+  /**
+   * Instruction indicates that a turn back from route deviation is needed
+   */
+  kInstructionTypeTurnAroundWhenPossible = 11;
+
+  /**
+   * Instruction indicates a border crossing.
+   */
+  kInstructionTypeBorderCrossing = 12;
+
+  /**
+   * Instruction indicates boarding into a ferry, car train or cable bridge.
+   */
+  kInstructionTypeEntryAutoTransport = 13;
+
+  /**
+   * Instruction indicates exiting a ferry, car train or cable bridge.
+   */
+  kInstructionTypeExitAutoTransport = 14;
+
+  /**
+   * Instruction indicates a possible stop in tollgate.
+   */
+  kInstructionTypeTollgate = 15;
+
+  /**
+   * Instruction indicates entering an HOV lane by switching lanes.
+   */
+  kInstructionTypeEnterHov = 16;
+
+  /**
+   * Instruction indicates leaving an HOV lane by switching lanes.
+   */
+  kInstructionTypeExitHov = 17;
+
+  /**
+   * Instruction to prevent the driver from taking a wrong exit.
+   */
+  kInstructionTypeContinueInterim = 18;
+}
+
+/**
+ * Classification of an exit direction, relative to the direction of travel.
+ */
+enum ExitDirection {
+  /** Exit is on the left side of driving. */
+  kExitDirectionLeft = 0;
+
+  /** Exit is on the right side of driving. */
+  kExitDirectionRight = 1;
+
+  /** Exit is in the middle side of driving. */
+  kExitDirectionMiddle = 2;
+}
+
+/**
+ * Overall Direction to follow on the roundabout.
+ */
+enum RoundaboutDirection {
+  /** Cross the roundabout (go straight). */
+  kRoundaboutDirectionExitCross = 0;
+
+  /** Turn right at the roundabout. */
+  kRoundaboutDirectionExitRight = 1;
+
+  /** Turn left at the roundabout. */
+  kRoundaboutDirectionExitLeft = 2;
+
+  /** Go all the way around the roundabout. */
+  kRoundaboutDirectionExitBack = 3;
+}
+
+/**
+ * A quantized angle.
+ */
+enum QuantizedAngle {
+  /** Angle corresponding to a "straight" direction. */
+  kStraight = 0;
+  /** Angle corresponding to a "slight right" direction. */
+  kSlightRight = 1;
+  /** Angle corresponding to a "right" direction. */
+  kRight = 2;
+  /** Angle corresponding to a "sharp right" direction. */
+  kSharpRight = 3;
+  /** Angle corresponding to a "slight left" direction. */
+  kSlightLeft = 4;
+  /** Angle corresponding to a "left" direction. */
+  kLeft = 5;
+  /** Angle corresponding to a "sharp left" direction. */
+  kSharpLeft = 6;
+  /** Angle corresponding to a u-turn. */
+  kBack = 7;
+};
+
+/**
+ * A roundabout type.
+ */
+enum RoundaboutType {
+  kDefault = 0;  ///< All roundabouts that don't fit any of the following listed criteria
+  kSmall = 1;         ///< Small and simple roundabout.
+                 ///< radius <= 30m, number of exits <2, 4>,
+                 ///< branches crossing at approx. +-90° or 0° or 180°
+};
+
+/**
+ * Classification of a relative turn angle.
+ */
+enum TurnDirection {
+  /** Value representing a "go straight" direction. */
+  kTurnDirectionGoStraight = 0;
+
+  /** Value representing a "bear right" direction. */
+  kTurnDirectionBearRight = 1;
+
+  /** Value representing a "turn right" direction. */
+  kTurnDirectionTurnRight = 2;
+
+  /** Value representing a "sharp right" direction. */
+  kTurnDirectionSharpRight = 3;
+
+  /** Value representing a "bear left" direction. */
+  kTurnDirectionBearLeft = 4;
+
+  /** Value representing a "turn left" direction. */
+  kTurnDirectionTurnLeft = 5;
+
+  /** Value representing a "sharp left" direction. */
+  kTurnDirectionSharpLeft = 6;
+
+  /** Value representing a "turn around" or "make a U-turn" direction. */
+  kTurnDirectionTurnAround = 7;
+}
+
+/**
+ * Direction to follow in a fork.
+ */
+enum ForkDirection {
+  /** Left direction. */
+  kForkDirectionLeft = 0;
+
+  /** Right direction. */
+  kForkDirectionRight = 1;
+
+  /** Middle direction. */
+  kForkDirectionMiddle = 2;
+}
+
+/**
+  * Road attributes related to road type.
+  */
+enum RoadAttribute {
+  kNone = 0;
+  kNationalRoad = 1;
+  kPrefecturalRoad = 2;
+  kExpressway = 3;
+  kCountyRoad = 4;
+  kNationalHighway = 5;
+  kProvincialHighway = 6;
+  kProvincialRoad = 7;
+  kTownshipRoad = 8;
+  kTokyoPrefecturalRoad = 9;          // "Prefectural Road in the Tokyo Prefecture" (JPN)
+  kHokkaidoPrefecturalRoad = 10;      // "Prefectural Road in the Hokkaido Prefecture" (JPN)
+  kOsakaAndKyotoPrefecturalRoad = 11; // "Prefectural Road in the Osaka and Kyoto Prefecture" (JPN)
+}
+
+/**
+  * Source of the road identifier.
+  */
+enum RoadIdentifierSource {
+  /**
+    * Road identifier is from the signpost.
+    */
+  kSignpost = 0;
+  /**
+    * Road identifier is from the road information.
+    */
+  kRoad = 1;
+}
+
+/**
+ *  Information about specific road identifier
+ *  (such as road name or road number) containing
+ *  additional information about represented road
+ *  identity.
+ */
+message RoadIdentifier {
+  /**
+   * Text and phonetic transcription of the road number or name.
+   */
+  TextWithPhonetic identifier = 1;
+
+  /**
+   * The source of the road identifier (signpost or link name).
+   */
+  RoadIdentifierSource source = 2;
+
+  /**
+   * The road attribute of the road identifier
+   */
+  RoadAttribute road_attribute = 3;
+}
+
+/** Road information at some point on route. */
+message RoadInformation {
+  /**
+   * Text and phonetic transcriptions of the road name
+   */
+  repeated RoadIdentifier road_names = 1;
+
+  /** The road numbers with phonetic information */
+  repeated RoadIdentifier road_numbers= 2;
+
+  /** This flag indicates if the road is in urban area. */
+  bool is_urban_area = 4;
+
+  /** This flag indicates if the road is controlled access road. */
+  bool is_controlled_access = 5;
+
+  /** This flag indicates if the road is a motorway */
+  bool is_motorway = 6;
+
+  /**
+   * The three-letter country code defined in ISO 3166-1.
+   * Example: "USA" for the United States of America.
+   */
+  string country_code = 7;
+}
+
+/**
+ * Definition of an instruction for a roundabout in the road.
+ */
+message Roundabout {
+  /** Classification of the way to cross the roundabout. */
+  RoundaboutDirection direction = 1;
+
+  /**
+   * Turn angle relative to driving direction on the entry road to the
+   * roundabout.
+   */
+  int32 angle_in_degrees = 2;
+
+  /**
+   * Quantized turn angle relative to driving direction on the entry road to the
+   * roundabout.
+   */
+  QuantizedAngle turn_angle = 3;
+
+  /**
+   * Exit number, where the driver should leave the roundabout, counted from the
+   * entry point to the roundabout. If the route starts on the roundabout,
+   * counting starts from the departure point.
+   */
+  int32 exit_number = 4;
+
+  /**
+   * Type of roundabout.
+   */
+  RoundaboutType roundabout_type = 5;
+}
+
+/**
+ * Definition of an instruction for exiting a roundabout.
+ */
+message ExitRoundabout {
+  /** Attributes of the roundabout this instruction refers to */
+  Roundabout roundabout = 1;
+}
+
+/** Signpost information to enrich an instruction. */
+message Signpost {
+  /**
+   * Signpost exit number
+   */
+  TextWithPhonetic exit_number = 1;
+  /**
+   * Signpost exit name
+   */
+  TextWithPhonetic exit_name = 2;
+  /**
+   * Signpost toward name
+   */
+  TextWithPhonetic toward_name = 3;
+}
+
+/**
+ * Provides the information about the landmark types
+ */
+enum Landmark {
+  /** T-junction road type with only left or right turn available */
+  kEndOfRoad = 0;
+  /** Traffic light landmark */
+  kAtTrafficLight = 1;
+  /** Driving on to a bridge */
+  kOnToBridge = 2;
+  /** Currently driving on the bridge */
+  kOnBridge = 3;
+  /** Leaving the bridge */
+  kAfterBridge = 4;
+  /** Driving into a tunnel */
+  kIntoTunnel = 5;
+  /** Driving inside the tunnel */
+  kInsideTunnel = 6;
+  /** Leaving the tunnel */
+  kAfterTunnel = 7;
+}
+
+enum MergeSide {
+  kMergeToLeftLane = 0;
+  kMergeToRightLane = 1;
+}
+
+enum SwitchHighwayDirection {
+  kSwitchHighwayLeft = 0;
+  kSwitchHighwayRight = 1;
+  kSwitchHighwayMiddle = 2;
+}
+
+message TextWithPhonetic {
+  string text = 1;
+  Language text_language = 2;
+  PhoneticString generic_use_case_phonetic_string = 3;
+  PhoneticStringWithPreposition into_use_case_phonetic_string = 4;
+  PhoneticStringWithPreposition follow_use_case_phonetic_string = 5;
+}
+
+message PhoneticString {
+  string value = 1;
+  string alphabet = 2;
+  Language language = 3;
+}
+
+message PhoneticStringWithPreposition {
+  PhoneticString phonetic_string = 1;
+  string prefix = 2;
+}
+
+message BorderCrossing {
+  message CountryInfo {
+    TextWithPhonetic country_name = 1;
+    string iso_country_code = 2;
+  }
+  CountryInfo from_country = 1;
+  CountryInfo to_country = 2;
+}
+
+enum AutoTransportType {
+  kFerry = 0;
+  kCartrain = 1;
+}
+
+enum EnterHovDirection {
+  kEnterHovLeft = 0;
+  kEnterHovRight = 1;
+}
+
+enum ExitHovDirection {
+  kExitHovLeft = 0;
+  kExitHovRight = 1;
+}
+
+/**
+ * Contains information about a charging stop.
+ * This information is used to generate more detailed instructions for waypoints and arrival
+ * locations that are charging stops.
+ */
+message ChargingStop {
+  optional TextWithPhonetic operator_name = 1;
+}
+
+/** A turn-by-turn guidance instruction. */
+message AudioInstruction {
+  /**
+   * Lane guidance lane information
+   */
+    message Lane {
+        enum LaneDirection {
+            kStraight = 0;     // Value representing a "straight" direction.
+            kSlightRight = 1;  // Value representing a "slight right" direction.
+            kRight = 2;        // Value representing a "right" direction.
+            kSharpRight = 3;   // Value representing a "sharp right" direction.
+            kRightUTurn = 4;   // Value representing a "right u-turn" direction.
+            kSlightLeft = 5;   // Value representing a "slight left" direction.
+            kLeft = 6;         // Value representing a "left" direction.
+            kSharpLeft = 7;    // Value representing a "sharp left" direction.
+            kLeftUTurn = 8;    // Value representing a "left u-turn" direction.
+        }
+        /*
+         * List of directions reachable from this lane.
+         */
+        repeated LaneDirection directions = 1;
+
+        /*
+         * Optional Direction the driver should follow to continue along the route
+         */
+        optional LaneDirection follow_direction = 2;
+    }
+  /** The instruction type. */
+  AudioInstructionType type = 1;
+
+  /** The driving side of the instruction. */
+  DrivingSide driving_side = 2;
+
+  /** The side at which the itinerary point can be found. */
+  ItineraryPointSide itinerary_point_side = 3;
+
+  /**
+   * The road information of the previous significant road before target maneuver.
+   *
+   * For message_type kFollow,
+   * 1. This field is the information of the road between the current car position and the maneuver point.
+   * 2. If the roads change between the current car position and the maneuver point, this field should not be provided.
+   */
+  optional RoadInformation incoming_road_information = 4;
+
+  /**
+   * The road information of the next significant road.
+   */
+  RoadInformation outgoing_road_information = 5;
+
+  /** Landmark information, if present in this instruction */
+  optional Landmark landmark = 6;
+
+  /** Enriches highway instructions with signpost information. */
+  optional Signpost signpost = 7;
+
+  /**
+   * Distance between the previous intermediate traffic light and the traffic light at the maneuver
+   * point.
+   */
+  optional int32 traffic_light_offset_in_centimeters = 8;
+
+  optional ExitDirection exit_direction = 9;
+
+  /** Distance between the intermediate side_street and the maneuver point. */
+  optional int32 side_street_offset_in_centimeters = 10;
+
+  /** Set when type is kInstructionTypeFork. */
+  optional ForkDirection fork_direction = 11;
+
+  /** Text and phonetic transcription of the name of the intersection at the maneuver point. */
+  optional TextWithPhonetic intersection_name_with_phonetic = 12;
+
+  optional TurnDirection turn_direction = 13;
+
+  optional SwitchHighwayDirection switch_highway_direction = 14;
+
+  /** Set when type is kInstructionTypeEnterHov */
+  optional EnterHovDirection enter_hov_direction = 15;
+
+  /** Set when type is kInstructionTypeExitHov */
+  optional ExitHovDirection exit_hov_direction = 16;
+
+  optional MergeSide merge_side = 17;
+
+  /** Set when type is kInstructionTypeRoundabout. */
+  optional Roundabout roundabout = 18;
+
+  /** Set when type is kInstructionTypeExitRoundabout. */
+  optional ExitRoundabout exit_roundabout = 19;
+
+  /** Set when type is kInstructionTypeBorderCrossing. */
+  optional BorderCrossing border_crossing = 20;
+
+  /** Set when type is kInstructionTypeAutoTransport */
+  optional AutoTransportType auto_transport_type = 21;
+
+  /**
+   * Lane configuration at maneuver.
+   *
+   * Note: lanes[0] represents leftmost lane regardless of the DrivingSide.
+   */
+  repeated Lane lane_guidance = 22;
+  optional ChargingStop charging_stop = 23;
+}

@@ -112,12 +112,12 @@ class RealProtoFilesTest {
         val parser = ProtoParser()
         val parsedFile = parser.parseProtoFile(protoFile, listOf(protoDir))
 
-        // Then: Should parse the Language enum
-        assertTrue(parsedFile.enums.isNotEmpty(), "Should have Language enum")
-        val languageEnum = parsedFile.enums.find { it.name == "Language" }
-        assertTrue(languageEnum != null, "Should find Language enum")
+        // Then: Should parse the Language message
+        assertTrue(parsedFile.messages.isNotEmpty(), "Should have Language message")
+        val languageMessage = parsedFile.messages.find { it.name == "Language" }
+        assertTrue(languageMessage != null, "Should find Language message")
 
-        println("✓ Parsed Language enum with ${languageEnum!!.values.size} values")
+        println("✓ Parsed Language message with ${languageMessage!!.fields.size} fields")
     }
 
     @Test

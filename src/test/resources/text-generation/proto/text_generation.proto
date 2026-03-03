@@ -1,0 +1,256 @@
+/*
+ * Copyright (C) 2022 TomTom NV. All rights reserved.
+ *
+ * This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
+ * used for internal evaluation purposes or commercial use strictly subject to separate
+ * license agreement between you and TomTom NV. If you are the licensee, you are only permitted
+ * to use this software in accordance with the terms of your license agreement. If you are
+ * not the licensee, you are not authorized to use this software in any manner and should
+ * immediately return or destroy it.
+ */
+
+syntax = "proto3";
+
+package com.tomtom.sdk.navigation.verbalmessagegeneration.infrastructure.protos;
+
+import "audio_instruction.proto";
+
+message AudioMessage {
+  /**
+   * Audio message in SSML format
+   */
+  string text = 1;
+
+  /**
+   * IETF language tag of the locale used to generate the audio message
+   * (dash separated two-letter ISO-639 country code and two-letter ISO 3166 country code)
+   */
+  string locale = 2;
+};
+
+message AnnouncementData {
+  enum MessageType {
+    /** follow message */
+    kFollow = 0;
+    /** far away message */
+    kFarAway = 1;
+    /** early warning */
+    kWarning = 2;
+    /** main message */
+    kMain = 3;
+    /** confirmation message */
+    kConfirmation = 4;
+    /** extended confirmation message which contains more information than the regular confirmation
+     * message */
+    kExtendedConfirmation = 5;
+  };
+
+  int32 distance_in_cm = 1;
+  MessageType message_type = 2;
+  AudioInstruction instruction = 3;
+  /** next_instruction is set when we want to combine it with instruction */
+  optional AudioInstruction next_instruction = 4;
+};
+
+message VerbosityLevel {
+  enum Verbosity {
+    kComprehensive = 0;
+    kCompact = 1;
+  };
+
+  Verbosity level = 1;
+}
+
+message UnitSystem {
+  enum Unit {
+    /** meters, km */
+    kMetric = 0;
+    /** miles, yards, km */
+    kImperialUK = 1;
+    /** miles, feet, km */
+    kImperialNorthAmerica = 2;
+  }
+
+  Unit unit_system = 1;
+}
+
+message RoundingSpecification {
+  enum Specification {
+    kDefault = 0;
+    kHcp3 = 1;
+  }
+
+  Specification rounding_specification = 1;
+}
+
+message WarningData {
+    oneof WarningDataVariant {
+        DynamicRouteGuidanceData dynamicRouteGuidanceData = 1;
+        ChargingStopData ChargingStopData = 2;
+        TrafficEventData trafficEventData = 3;
+    }
+};
+
+message DynamicRouteGuidanceData {
+    /**
+    * The reason for generating the message.
+    */
+    enum Reason {
+        kRouteBlockage = 0;
+        kRouteUnreachable = 1;
+        kRouteDelay = 2;
+        kAltRoute = 3;
+        kAltRouteTTA = 4;
+        kAltRouteTTADueToDelay = 5;
+        kAltRouteDueToBlockage = 6;
+        kAltRouteDueToUnreachable = 7;
+    }
+    /**
+    * The dynamic route guidance mode used to generate the message.
+    */
+    enum Mode {
+        kAutomatic = 0;
+        kSemiDynamic = 1;
+    }
+
+    /**
+     * Enumerates the different audio message types. Depending on the message type, certain information
+     * will be included or excluded from the generated audio message for a particular instruction.
+     */
+    enum WarningMessageType {
+        /**
+         * Early announcement of the warning audio message, if needed. E.g.:
+         *    "Better route found. 4 minutes faster."
+         */
+        kEarly = 0;
+
+        /**
+         * Standard warning message. E.g.:
+         *    "For a 9 minutes faster route, in 100 meters turn right."
+         */
+        kApproaching = 1;
+
+        /**
+         * Standard warning message, extended with other info. E.g.:
+         *    "Better route found. For a 9 minutes faster route, in 100 meters turn right."
+         */
+        kApproachingExtended = 2;
+
+        /**
+         * Warning message to confirm the action is taken. E.g.:
+         *    "Taking better route. You will arrive at 19:34."
+         */
+        kAccepting = 3;
+    }
+
+    Reason reason = 1;
+    Mode mode = 2;
+    int64 travel_time_advantage_seconds = 3;
+    int64 travel_delay_seconds = 4;
+    int64 estimated_travel_duration_seconds = 5;
+    bool is_charging_plan_modified = 6;
+    optional int64 current_time_milliseconds = 7;
+    optional WarningMessageType warning_message_type = 8;
+};
+
+/**
+ * EV charging stop change data used to generate appropriate warning messages.
+ * Warning messages are generated to inform the driver about change in the charging stops plan.
+ */
+message ChargingStopData {
+  /** The type of EV charging stop change warning message.*/
+  enum Type {
+  /** Next charging stop was replaced. */
+    NEXT_CHARGING_STOP_REPLACED = 0;
+
+  /** All charging stations changed to new locations. */
+    ALL_CHARGING_STOPS_CHANGED = 1;
+
+  /** Next charging stop was removed. */
+    NEXT_CHARGING_STOP_REMOVED = 2;
+
+  /** Additional charging stop was added, it is needed to reach the next stop or final
+  destination. */
+    NEXT_CHARGING_STOP_ADDED = 3;
+
+  /** No alternative charger in range. Return to the last charger is required. */
+    RETURN_TO_LAST_CHARGING_STOP = 4;
+  }
+
+  /** The Charger Type */
+  enum ChargerType {
+  /** Other charger, not fast or hyper. */
+  DEFAULT = 0;
+
+  /** Fast or hypercharger. */
+  FAST = 1;
+  }
+
+  Type type = 1;
+  ChargerType charger_type = 2;
+  optional TextWithPhonetic charger_operator_name = 3;
+  optional TextWithPhonetic location_name = 4;
+}
+
+/**
+ * Traffic Event Data used to generate appropriate warning messages.
+ * Warning messages are generated to inform the driver about road traffic ahead on route.
+ */
+message TrafficEventData {
+  /** The type of traffic event warning message. */
+  enum TrafficEventType {
+    UNKNOWN = 0;
+    STATIONARY_TRAFFIC = 1;
+    QUEUING_TRAFFIC = 2;
+    SLOW_TRAFFIC = 3;
+    TRAFFIC_JAM = 4;
+    ACCIDENT = 5;
+    ROAD_CLOSED = 6;
+    EXIT_RESTRICTIONS = 7;
+    ENTRY_RESTRICTIONS = 8;
+    ROADWORKS = 9;
+    NARROW_LANES = 10;
+    INCIDENTS = 11;
+    OBSTRUCTION_HAZARDS = 12;
+    DANGEROUS_SITUATION = 13;
+    VEHICLES_CARRYING_HAZARDOUS_MATERIALS = 14;
+    SECURITY_INCIDENT = 15;
+    EXCEPTIONAL_LOADS = 16;
+    SLIPPERY_ROAD = 17;
+    DANGER_OF_FLASH_FLOODS = 18;
+    HAZARDOUS_DRIVING_CONDITIONS = 19;
+    TRAFFIC_RESTRICTIONS = 20;
+    STRONG_WINDS = 21;
+    SNOWFALL = 22;
+    SMOG_ALERT = 23;
+    HEAVY_RAIN = 24;
+    REDUCED_VISIBILITY = 25;
+    FOG = 26;
+    DANGEROUS_WEATHER_CONDITIONS = 27;
+    DRIVER_ON_WRONG_CARRIAGEWAY = 28;
+    DELAYS = 29;
+    AIR_RAID_DANGER = 30;
+    GUNFIRE_ON_THE_ROAD_DANGER = 31;
+    EMERGENCY_VEHICLES = 32;
+    POLICE_INTERVENTION_DANGER = 33;
+    HIGH_SPEED_CHASE = 34;
+    BROKEN_DOWN_VEHICLE = 35;
+  }
+
+  /**  Type of traffic event used to generate appropriate warning message. */
+  TrafficEventType traffic_event_type = 1;
+  /**  General location of the traffic event. */
+  optional TextWithPhonetic road_number = 2;
+  /**  General location of the traffic event. */
+  optional TextWithPhonetic road_name = 3;
+  /**  Nearest crossing road before the start of the incident. */
+  optional TextWithPhonetic start_road_name = 4;
+  /**  Nearest crossing road after the end of the incident. */
+  optional TextWithPhonetic end_road_name = 5;
+  /**  Nearest exit before the start of the incident. */
+  optional TextWithPhonetic start_exit_number = 6;
+  /**  Nearest exit after the end of the incident. */
+  optional TextWithPhonetic end_exit_number = 7;
+  /**  Delay time caused by the traffic event. */
+  optional int64 travel_delay_seconds = 8;
+}

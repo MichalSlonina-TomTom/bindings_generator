@@ -68,6 +68,7 @@ class ProtoParserTest {
 
     @Test
     fun `test parseProtoFile with simple message`() {
+        requireProtoc()
         // Given: A proto file with a message
         val protoContent = """
             syntax = "proto3";
@@ -103,6 +104,7 @@ class ProtoParserTest {
 
     @Test
     fun `test parseProtoFile with repeated fields`() {
+        requireProtoc()
         // Given: A proto with repeated fields
         val protoContent = """
             syntax = "proto3";
@@ -134,6 +136,7 @@ class ProtoParserTest {
 
     @Test
     fun `test parseProtoFile with nested message`() {
+        requireProtoc()
         // Given: A proto with nested message
         val protoContent = """
             syntax = "proto3";
@@ -166,6 +169,7 @@ class ProtoParserTest {
 
     @Test
     fun `test parseProtoFile with nested enum`() {
+        requireProtoc()
         // Given: A proto with nested enum
         val protoContent = """
             syntax = "proto3";
@@ -198,6 +202,7 @@ class ProtoParserTest {
 
     @Test
     fun `test parseProtoFile identifies enum fields correctly`() {
+        requireProtoc()
         // Given: A proto with enum field
         val protoContent = """
             syntax = "proto3";
@@ -228,6 +233,7 @@ class ProtoParserTest {
 
     @Test
     fun `test parseProtoFile identifies message fields correctly`() {
+        requireProtoc()
         // Given: A proto with message field
         val protoContent = """
             syntax = "proto3";
@@ -259,6 +265,7 @@ class ProtoParserTest {
 
     @Test
     fun `test parseProtoFile handles imports`() {
+        requireProtoc()
         // Given: Two proto files where one imports another
         val baseProto = """
             syntax = "proto3";

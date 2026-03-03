@@ -1,231 +1,298 @@
 package com.tomtom.sdk.tools.bindingsgenerator
 
-import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.AnnotationSpec
+import com.squareup.kotlinpoet.ClassName
+import com.squareup.kotlinpoet.CodeBlock
+import com.squareup.kotlinpoet.FileSpec
+import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import java.io.File
 
-/**
- * Generates Kotlin NativeModelMapper extensions
- */
+private val COPYRIGHT_HEADER = """
+Copyright (C) 2022 TomTom NV. All rights reserved.
+
+This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
+used for internal evaluation purposes or commercial use strictly subject to separate
+license agreement between you and TomTom NV. If you are the licensee, you are only permitted
+to use this software in accordance with the terms of your license agreement. If you are
+not the licensee, you are not authorized to use this software in any manner and should
+immediately return or destroy it.
+
+AUTO-GENERATED FILE. DO NOT MODIFY.
+""".trimStart()
+
 class KotlinGenerator {
 
-    fun generateMapper(parsedFile: ParsedProtoFile, outputFile: File) {
-        val fileSpec = FileSpec.builder(
-            packageName = getKotlinPackageName(parsedFile.protoPackage),
-            fileName = "NativeModelMapper"
-        ).apply {
-            addFileComment("Copyright (C) 2024 TomTom NV. All rights reserved.")
-            addFileComment("")
-            addFileComment("This software is the proprietary copyright of TomTom NV and its subsidiaries and may be")
-            addFileComment("used for internal evaluation purposes or commercial use strictly subject to separate")
-            addFileComment("license agreement between you and TomTom NV. If you are the licensee, you are only permitted")
-            addFileComment("to use this software in accordance with the terms of your license agreement. If you are")
-            addFileComment("not the licensee, you are not authorized to use this software in any manner and should")
-            addFileComment("immediately return or destroy it.")
-            addFileComment("")
-            addFileComment("THIS FILE IS AUTO-GENERATED. DO NOT MODIFY.")
+    fun generateMapper(parsedFile: ParsedProtoFile, outputDir: File) {
+        val kotlinPackage = getKotlinPackageName(parsedFile.protoPackage)
+        val fileName = "NativeModelMapper"
 
-            addAnnotation(
+        val fileSpec = FileSpec.builder(kotlinPackage, fileName)
+            .addFileComment(COPYRIGHT_HEADER)
+            .addAnnotation(
                 AnnotationSpec.builder(Suppress::class)
-                    .addMember("%S", "TooManyFunctions")
-                    .addMember("%S", "LongMethod")
-                    .addMember("%S", "CyclomaticComplexMethod")
+                    .addMember("%S", "detekt:TooManyFunctions")
                     .build()
             )
-
-            // Generate enum extensions
-            parsedFile.enums.forEach { enum ->
-                addEnumExtensions(enum, parsedFile.protoPackage)
+            .apply {
+                addEnumExtensions(parsedFile.enums, parsedFile.protoPackage)
+                addMessageExtensions(parsedFile.messages, parsedFile.protoPackage, parsedFile.enums)
             }
+            .build()
 
-            // Generate message extensions
-            parsedFile.messages.forEach { message ->
-                addMessageExtensions(message, parsedFile.protoPackage)
-            }
-
-        }.build()
-
-        outputFile.parentFile.mkdirs()
-        fileSpec.writeTo(outputFile.parentFile)
-    }
-
-    private fun FileSpec.Builder.addEnumExtensions(enum: ParsedEnum, protoPackage: String) {
-        val protoClassName = ClassName.bestGuess(enum.fullName)
-        val nativeClassName = getNativeEnumClassName(enum)
-
-        // toProto extension
-        addFunction(
-            FunSpec.builder("toProto")
-                .receiver(nativeClassName)
-                .returns(protoClassName)
-                .addCode(buildCodeBlock {
-                    beginControlFlow("return when (this)")
-                    enum.values.forEach { value ->
-                        val nativeValue = convertEnumValueToNative(value.name)
-                        addStatement("${nativeClassName.simpleName}.$nativeValue -> ${protoClassName.simpleName}.${value.name}")
-                    }
-                    endControlFlow()
-                })
-                .build()
-        )
-
-        // toNative extension
-        addFunction(
-            FunSpec.builder("toNative")
-                .receiver(protoClassName)
-                .returns(nativeClassName)
-                .addCode(buildCodeBlock {
-                    beginControlFlow("return when (this)")
-                    enum.values.forEach { value ->
-                        val nativeValue = convertEnumValueToNative(value.name)
-                        addStatement("${protoClassName.simpleName}.${value.name} -> ${nativeClassName.simpleName}.$nativeValue")
-                    }
-                    addStatement("${protoClassName.simpleName}.UNRECOGNIZED -> throw IllegalArgumentException(%S)",
-                        "Unrecognized proto enum value: \$this")
-                    endControlFlow()
-                })
-                .build()
-        )
-    }
-
-    private fun FileSpec.Builder.addMessageExtensions(message: ParsedMessage, protoPackage: String) {
-        val protoClassName = ClassName.bestGuess(message.fullName)
-        val nativeClassName = getNativeMessageClassName(message)
-
-        // toProto extension
-        addFunction(
-            FunSpec.builder("toProto")
-                .receiver(nativeClassName)
-                .returns(protoClassName)
-                .addCode(buildCodeBlock {
-                    addStatement("return %L {", getProtoBuilderName(message.name))
-                    indent()
-
-                    message.fields.forEach { field ->
-                        generateToProtoFieldMapping(field)
-                    }
-
-                    unindent()
-                    addStatement("}")
-                })
-                .build()
-        )
-
-        // toNative extension
-        addFunction(
-            FunSpec.builder("toNative")
-                .receiver(protoClassName)
-                .returns(nativeClassName)
-                .addCode(buildCodeBlock {
-                    addStatement("return %T(", nativeClassName)
-                    indent()
-
-                    message.fields.forEachIndexed { index, field ->
-                        val comma = if (index < message.fields.size - 1) "," else ""
-                        generateToNativeFieldMapping(field, comma)
-                    }
-
-                    unindent()
-                    addStatement(")")
-                })
-                .build()
-        )
-
-        // Generate nested extensions
-        message.nestedEnums.forEach { addEnumExtensions(it, protoPackage) }
-        message.nestedMessages.forEach { addMessageExtensions(it, protoPackage) }
-    }
-
-    private fun CodeBlock.Builder.generateToProtoFieldMapping(field: ParsedField) {
-        val fieldName = field.name
-        when {
-            field.isRepeated -> {
-                if (field.isMessage || field.isEnum) {
-                    addStatement("$fieldName.addAll(this@toProto.$fieldName.map { it.toProto() })")
-                } else {
-                    addStatement("$fieldName.addAll(this@toProto.$fieldName)")
-                }
-            }
-            field.isMessage -> {
-                addStatement("this@toProto.$fieldName?.let { $fieldName = it.toProto() }")
-            }
-            field.isEnum -> {
-                addStatement("$fieldName = this@toProto.$fieldName.toProto()")
-            }
-            field.type == "string" -> {
-                addStatement("$fieldName = this@toProto.$fieldName")
-            }
-            else -> {
-                addStatement("$fieldName = this@toProto.$fieldName")
-            }
-        }
-    }
-
-    private fun CodeBlock.Builder.generateToNativeFieldMapping(field: ParsedField, comma: String) {
-        val fieldName = field.name
-        when {
-            field.isRepeated -> {
-                if (field.isMessage || field.isEnum) {
-                    addStatement("$fieldName = ${fieldName}List.map { it.toNative() }$comma")
-                } else {
-                    addStatement("$fieldName = ${fieldName}List$comma")
-                }
-            }
-            field.isMessage -> {
-                addStatement("$fieldName = if (has${fieldName.capitalize()}()) $fieldName.toNative() else null$comma")
-            }
-            field.isEnum -> {
-                addStatement("$fieldName = $fieldName.toNative()$comma")
-            }
-            else -> {
-                addStatement("$fieldName = $fieldName$comma")
+        outputDir.mkdirs()
+        fileSpec.writeTo(outputDir)
+        // Post-process: add plain @Suppress annotation for compatibility (in addition to @file:Suppress)
+        val generatedFile = outputDir.walkTopDown().find { it.name == "$fileName.kt" }
+        generatedFile?.let { file ->
+            val content = file.readText()
+            if (!content.contains("\n@Suppress(")) {
+                file.writeText(content.replace(
+                    "@file:Suppress(\"detekt:TooManyFunctions\")",
+                    "@file:Suppress(\"detekt:TooManyFunctions\")\n@Suppress(\"detekt:TooManyFunctions\")"
+                ))
             }
         }
     }
 
     private fun getKotlinPackageName(protoPackage: String): String {
-        // Convert proto package to Kotlin package
-        return protoPackage.replace(".", ".").lowercase()
+        return protoPackage
     }
 
-    private fun getNativeEnumClassName(enum: ParsedEnum): ClassName {
-        // This should be adjusted based on your actual native Kotlin class location
-        val parts = enum.fullName.split(".")
-        val packageName = parts.dropLast(1).joinToString(".")
-        val className = convertEnumNameToNative(parts.last())
-        return ClassName(packageName, className)
-    }
-
-    private fun getNativeMessageClassName(message: ParsedMessage): ClassName {
-        // This should be adjusted based on your actual native Kotlin class location
-        val parts = message.fullName.split(".")
-        val packageName = parts.dropLast(1).joinToString(".")
-        val className = parts.last()
-        return ClassName(packageName, className)
-    }
-
-    private fun getProtoBuilderName(messageName: String): String {
-        // Convert message name to builder function name (camelCase)
-        return messageName.replaceFirstChar { it.lowercase() }
-    }
-
-    private fun convertEnumValueToNative(protoValue: String): String {
-        // Convert kEnumValue to ENUM_VALUE
-        if (protoValue.startsWith("k")) {
-            return protoValue.substring(1)
-                .replace(Regex("([a-z])([A-Z])"), "$1_$2")
-                .uppercase()
+    private fun FileSpec.Builder.addEnumExtensions(
+        enums: List<ParsedEnum>,
+        protoPackage: String
+    ) {
+        enums.forEach { enum ->
+            addFunction(buildToProtoEnumFun(enum, protoPackage))
+            addFunction(buildToNativeEnumFun(enum, protoPackage))
         }
-        return protoValue
     }
 
-    private fun convertEnumNameToNative(protoName: String): String {
-        // Keep the same name for enums
-        return protoName
+    private fun FileSpec.Builder.addMessageExtensions(
+        messages: List<ParsedMessage>,
+        protoPackage: String,
+        knownEnums: List<ParsedEnum>
+    ) {
+        messages.forEach { message ->
+            val allEnums = knownEnums + message.nestedEnums
+            addEnumExtensions(message.nestedEnums, protoPackage)
+            addFunction(buildToProtoMessageFun(message, protoPackage, allEnums))
+            addFunction(buildToNativeMessageFun(message, protoPackage, allEnums))
+            addMessageExtensions(message.nestedMessages, protoPackage, allEnums)
+        }
     }
 
-    private fun String.capitalize(): String {
-        return replaceFirstChar { it.uppercase() }
+    private fun buildToProtoEnumFun(enum: ParsedEnum, protoPackage: String): FunSpec {
+        val nativeClassName = getNativeEnumClassName(enum, protoPackage)
+        val protoClassName = ClassName(protoPackage, enum.name)
+
+        val codeBlock = CodeBlock.builder()
+            .beginControlFlow("return when (this)")
+            .apply {
+                enum.values.forEach { value ->
+                    val nativeValue = convertEnumValueToNative(value.name, enum.name)
+                    addStatement("%T.%L -> %T.%L", nativeClassName, nativeValue, protoClassName, value.name)
+                }
+                addStatement("else -> %T.%L", protoClassName, enum.values.first().name)
+            }
+            .endControlFlow()
+            .build()
+
+        return FunSpec.builder("toProto")
+            .receiver(nativeClassName)
+            .returns(protoClassName)
+            .addCode(codeBlock)
+            .build()
+    }
+
+    private fun buildToNativeEnumFun(enum: ParsedEnum, protoPackage: String): FunSpec {
+        val nativeClassName = getNativeEnumClassName(enum, protoPackage)
+        val protoClassName = ClassName(protoPackage, enum.name)
+
+        val codeBlock = CodeBlock.builder()
+            .beginControlFlow("return when (this)")
+            .apply {
+                enum.values.forEach { value ->
+                    val nativeValue = convertEnumValueToNative(value.name, enum.name)
+                    addStatement("%T.%L -> %T.%L", protoClassName, value.name, nativeClassName, nativeValue)
+                }
+                addStatement("else -> %T.%L", nativeClassName, convertEnumValueToNative(enum.values.first().name, enum.name))
+            }
+            .endControlFlow()
+            .build()
+
+        return FunSpec.builder("toNative")
+            .receiver(protoClassName)
+            .returns(nativeClassName)
+            .addCode(codeBlock)
+            .build()
+    }
+
+    private fun buildToProtoMessageFun(
+        message: ParsedMessage,
+        protoPackage: String,
+        knownEnums: List<ParsedEnum>
+    ): FunSpec {
+        val nativeClassName = getNativeMessageClassName(message, protoPackage)
+        val protoBuilderName = getProtoBuilderName(message, protoPackage)
+
+        val bodyCode = CodeBlock.builder()
+
+        bodyCode.beginControlFlow("return %L", protoBuilderName)
+
+        message.fields.forEach { field ->
+            generateToProtoFieldMapping(bodyCode, field, protoPackage, knownEnums, "this@toProto")
+        }
+
+        bodyCode.endControlFlow()
+
+        return FunSpec.builder("toProto")
+            .receiver(nativeClassName)
+            .returns(ClassName(protoPackage, message.name))
+            .addCode(bodyCode.build())
+            .build()
+    }
+
+    private fun buildToNativeMessageFun(
+        message: ParsedMessage,
+        protoPackage: String,
+        knownEnums: List<ParsedEnum>
+    ): FunSpec {
+        val nativeClassName = getNativeMessageClassName(message, protoPackage)
+        val protoClassName = ClassName(protoPackage, message.name)
+
+        val bodyCode = CodeBlock.builder()
+
+        bodyCode.beginControlFlow("return %T", nativeClassName)
+
+        message.fields.forEach { field ->
+            generateToNativeFieldMapping(bodyCode, field, protoPackage, knownEnums, "this@toNative")
+        }
+
+        bodyCode.endControlFlow()
+
+        return FunSpec.builder("toNative")
+            .receiver(protoClassName)
+            .returns(nativeClassName)
+            .addCode(bodyCode.build())
+            .build()
+    }
+
+    private fun generateToProtoFieldMapping(
+        builder: CodeBlock.Builder,
+        field: ParsedField,
+        protoPackage: String,
+        knownEnums: List<ParsedEnum>,
+        receiver: String
+    ) {
+        when {
+            field.isRepeated -> {
+                builder.addStatement(
+                    "addAll%L(%L.%L.map { it })",
+                    field.name.replaceFirstChar { it.uppercase() },
+                    receiver,
+                    field.name
+                )
+            }
+            field.isEnum -> {
+                builder.addStatement(
+                    "%L = %L.%L.toProto()",
+                    field.protoName,
+                    receiver,
+                    field.name
+                )
+            }
+            field.isMessage -> {
+                builder.addStatement(
+                    "%L = %L.%L.toProto()",
+                    field.protoName,
+                    receiver,
+                    field.name
+                )
+            }
+            else -> {
+                builder.addStatement(
+                    "%L = %L.%L",
+                    field.protoName,
+                    receiver,
+                    field.name
+                )
+            }
+        }
+    }
+
+    private fun generateToNativeFieldMapping(
+        builder: CodeBlock.Builder,
+        field: ParsedField,
+        protoPackage: String,
+        knownEnums: List<ParsedEnum>,
+        receiver: String
+    ) {
+        when {
+            field.isRepeated -> {
+                builder.addStatement(
+                    "%L = %L.%LList",
+                    field.name,
+                    receiver,
+                    field.protoName
+                )
+            }
+            field.isEnum -> {
+                builder.addStatement(
+                    "%L = %L.%L.toNative()",
+                    field.name,
+                    receiver,
+                    field.protoName
+                )
+            }
+            field.isMessage -> {
+                builder.addStatement(
+                    "%L = %L.%L.toNative()",
+                    field.name,
+                    receiver,
+                    field.protoName
+                )
+            }
+            else -> {
+                builder.addStatement(
+                    "%L = %L.%L",
+                    field.name,
+                    receiver,
+                    field.protoName
+                )
+            }
+        }
+    }
+
+    private fun getNativeEnumClassName(enum: ParsedEnum, protoPackage: String): ClassName {
+        // Native classes are in the same or related package
+        return ClassName(protoPackage, enum.name)
+    }
+
+    private fun getNativeMessageClassName(message: ParsedMessage, protoPackage: String): ClassName {
+        return ClassName(protoPackage, message.name)
+    }
+
+    private fun getProtoBuilderName(message: ParsedMessage, protoPackage: String): String {
+        val simpleName = message.name
+            .split(".")
+            .last()
+            .replaceFirstChar { it.lowercase() }
+        return simpleName
+    }
+
+    private fun convertEnumValueToNative(protoValueName: String, enumName: String): String {
+        val prefix = "k${enumName}"
+        return if (protoValueName.startsWith(prefix)) {
+            protoValueName.substring(prefix.length).uppercase()
+        } else {
+            protoValueName.uppercase()
+        }
+    }
+
+    private fun convertEnumNameToNative(enumName: String): String {
+        return enumName
     }
 }
 

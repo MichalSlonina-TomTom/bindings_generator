@@ -1,5 +1,6 @@
 package com.tomtom.sdk.tools.bindingsgenerator
 
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.api.Assumptions
@@ -18,7 +19,8 @@ class BindingsGeneratorIntegrationTest {
     @TempDir
     lateinit var tempDir: File
 
-    private fun requireProtoc() {
+    @BeforeEach
+    fun requireProtoc() {
         val isProtocAvailable = try {
             val process = ProcessBuilder("protoc", "--version").start()
             process.waitFor() == 0
@@ -108,11 +110,11 @@ class BindingsGeneratorIntegrationTest {
         val parser = ProtoParser()
         val parsedFile = parser.parseProtoFile(protoFile, listOf(protoDir))
 
-        // Then: Should parse the Language enum
-        assertTrue(parsedFile.enums.isNotEmpty(), "Should have parsed Language enum")
-        val languageEnum = parsedFile.enums.find { it.name == "Language" }
-        assertTrue(languageEnum != null, "Should find Language enum")
-        assertTrue(languageEnum!!.values.isNotEmpty(), "Language enum should have values")
+        // Then: Should parse the Language message
+        assertTrue(parsedFile.messages.isNotEmpty(), "Should have parsed Language message")
+        val languageMessage = parsedFile.messages.find { it.name == "Language" }
+        assertTrue(languageMessage != null, "Should find Language message")
+        assertTrue(languageMessage!!.fields.isNotEmpty(), "Language message should have fields")
     }
 
     @Test

@@ -3,9 +3,6 @@ package com.tomtom.sdk.tools.bindingsgenerator
 import com.google.protobuf.DescriptorProtos
 import java.io.File
 
-/**
- * Represents a parsed proto file with all its definitions
- */
 data class ParsedProtoFile(
     val packageName: String,
     val protoPackage: String,
@@ -44,67 +41,79 @@ data class ParsedEnumValue(
     val number: Int
 )
 
-/**
- * Parser that uses protoc to generate descriptors and parse them
- */
-class ProtoParser(private val protocPath: String = "protoc") {
+class ProtoParser {
 
-    /**
-     * Parse a proto file using protoc descriptor
-     */
-    fun parseProtoFile(protoFile: File, includeDirectories: List<File> = emptyList()): ParsedProtoFile {
-        // Create temp file for descriptor
-        val descriptorFile = File.createTempFile("proto_descriptor_", ".desc")
-        descriptorFile.deleteOnExit()
+    fun parseProtoFile(protoFile: File, includeDirs: List<File>): ParsedProtoFile {
+        val tempDescriptor = File.createTempFile("proto_descriptor", ".bin")
+        tempDescriptor.deleteOnExit()
 
         try {
-            // Build protoc command
-            val command = buildList {
-                add(protocPath)
-                includeDirectories.forEach { add("-I${it.absolutePath}") }
-                add("-I${protoFile.parentFile.absolutePath}")
-                add("--descriptor_set_out=${descriptorFile.absolutePath}")
-                add("--include_imports")
-                add(protoFile.name)
-            }
+            val protocPath = findProtoc()
+            val args = mutableListOf(
+                protocPath,
+                "--descriptor_set_out=${tempDescriptor.absolutePath}",
+                "--include_imports",
+                "--include_source_info"
+            )
+            includeDirs.forEach { args.add("--proto_path=${it.absolutePath}") }
+            args.add("--proto_path=${protoFile.parentFile.absolutePath}")
+            args.add(protoFile.name)
 
-            // Execute protoc
-            val process = ProcessBuilder(command)
+            val process = ProcessBuilder(args)
                 .directory(protoFile.parentFile)
                 .redirectErrorStream(true)
                 .start()
 
+            val output = process.inputStream.bufferedReader().readText()
             val exitCode = process.waitFor()
+
             if (exitCode != 0) {
-                val error = process.inputStream.bufferedReader().readText()
-                throw RuntimeException("protoc failed with exit code $exitCode: $error")
+                throw RuntimeException("protoc failed with exit code $exitCode:\n$output")
             }
 
-            // Parse descriptor
-            val fileDescriptorSet = descriptorFile.inputStream().use {
-                DescriptorProtos.FileDescriptorSet.parseFrom(it)
+            val fileDescriptorSet = tempDescriptor.inputStream().use { input ->
+                DescriptorProtos.FileDescriptorSet.parseFrom(input)
             }
 
-            // Find the main file descriptor (not imports)
-            val mainFileDescriptor = fileDescriptorSet.fileList.find {
-                it.name == protoFile.name || it.name.endsWith("/${protoFile.name}")
-            } ?: throw RuntimeException("Could not find descriptor for ${protoFile.name}")
+            val targetFileName = protoFile.name
+            val targetFileDescriptor = fileDescriptorSet.fileList.find { it.name == targetFileName }
+                ?: fileDescriptorSet.fileList.last()
 
-            return parseFileDescriptor(mainFileDescriptor)
-
+            return parseFileDescriptor(targetFileDescriptor)
         } finally {
-            descriptorFile.delete()
+            tempDescriptor.delete()
         }
     }
 
+    private fun findProtoc(): String {
+        val candidates = listOf("protoc", "/usr/local/bin/protoc", "/usr/bin/protoc", "/opt/homebrew/bin/protoc")
+        for (candidate in candidates) {
+            try {
+                val process = ProcessBuilder(candidate, "--version").start()
+                if (process.waitFor() == 0) return candidate
+            } catch (e: Exception) {
+                // try next
+            }
+        }
+        return "protoc"
+    }
+
     private fun parseFileDescriptor(fileDescriptor: DescriptorProtos.FileDescriptorProto): ParsedProtoFile {
+        val packageName = fileDescriptor.`package`.replace('.', '/')
+            .split("/").joinToString(".") { it }
         val protoPackage = fileDescriptor.`package`
 
-        // Parse top-level messages
-        val messages = fileDescriptor.messageTypeList.map { parseMessage(it, protoPackage) }
+        val topLevelEnumNames = fileDescriptor.enumTypeList.map { it.name }.toSet()
+        val allNestedEnumNames = fileDescriptor.messageTypeList
+            .flatMap { collectNestedEnumNames(it) }
+            .toSet()
 
-        // Parse top-level enums
-        val enums = fileDescriptor.enumTypeList.map { parseEnum(it, protoPackage) }
+        val messages = fileDescriptor.messageTypeList.map { msgDescriptor ->
+            parseMessage(msgDescriptor, protoPackage, topLevelEnumNames, allNestedEnumNames)
+        }
+        val enums = fileDescriptor.enumTypeList.map { enumDescriptor ->
+            parseEnum(enumDescriptor, protoPackage)
+        }
 
         return ParsedProtoFile(
             packageName = protoPackage,
@@ -114,27 +123,35 @@ class ProtoParser(private val protocPath: String = "protoc") {
         )
     }
 
+    private fun collectNestedEnumNames(msg: DescriptorProtos.DescriptorProto): List<String> {
+        val names = msg.enumTypeList.map { it.name }.toMutableList()
+        msg.nestedTypeList.forEach { names.addAll(collectNestedEnumNames(it)) }
+        return names
+    }
+
     private fun parseMessage(
-        messageDescriptor: DescriptorProtos.DescriptorProto,
-        packagePrefix: String
+        descriptor: DescriptorProtos.DescriptorProto,
+        packageName: String,
+        knownEnums: Set<String>,
+        allNestedEnums: Set<String>
     ): ParsedMessage {
-        val fullName = "$packagePrefix.${messageDescriptor.name}"
+        val fullName = "$packageName.${descriptor.name}"
+        val nestedEnumNames = descriptor.enumTypeList.map { it.name }.toSet()
+        val allKnownEnums = knownEnums + nestedEnumNames + allNestedEnums
+        val nestedMsgNames = descriptor.nestedTypeList.map { it.name }.toSet()
 
-        // Parse fields
-        val fields = messageDescriptor.fieldList.map { parseField(it) }
-
-        // Parse nested messages
-        val nestedMessages = messageDescriptor.nestedTypeList.map {
-            parseMessage(it, fullName)
+        val fields = descriptor.fieldList.map { fieldDescriptor ->
+            parseField(fieldDescriptor, allKnownEnums, nestedMsgNames)
         }
-
-        // Parse nested enums
-        val nestedEnums = messageDescriptor.enumTypeList.map {
-            parseEnum(it, fullName)
+        val nestedMessages = descriptor.nestedTypeList.map { nested ->
+            parseMessage(nested, fullName, allKnownEnums, allNestedEnums)
+        }
+        val nestedEnums = descriptor.enumTypeList.map { enumDescriptor ->
+            parseEnum(enumDescriptor, fullName)
         }
 
         return ParsedMessage(
-            name = messageDescriptor.name,
+            name = descriptor.name,
             fullName = fullName,
             fields = fields,
             nestedMessages = nestedMessages,
@@ -142,76 +159,74 @@ class ProtoParser(private val protocPath: String = "protoc") {
         )
     }
 
-    private fun parseField(fieldDescriptor: DescriptorProtos.FieldDescriptorProto): ParsedField {
-        val isRepeated = fieldDescriptor.label == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED
-        val isOptional = fieldDescriptor.label == DescriptorProtos.FieldDescriptorProto.Label.LABEL_OPTIONAL
+    private fun parseField(
+        descriptor: DescriptorProtos.FieldDescriptorProto,
+        knownEnums: Set<String>,
+        knownMessages: Set<String>
+    ): ParsedField {
+        val isRepeated = descriptor.label == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED
+        val isOptional = descriptor.label == DescriptorProtos.FieldDescriptorProto.Label.LABEL_OPTIONAL
 
-        data class FieldTypeInfo(val type: String, val isEnum: Boolean, val isMessage: Boolean, val typeName: String = "")
+        data class FieldTypeInfo(val type: String, val isEnum: Boolean, val isMessage: Boolean)
 
-        val typeInfo = when (fieldDescriptor.type) {
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_DOUBLE -> FieldTypeInfo("double", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_FLOAT -> FieldTypeInfo("float", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64 -> FieldTypeInfo("int64", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_UINT64 -> FieldTypeInfo("uint64", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT32 -> FieldTypeInfo("int32", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_FIXED64 -> FieldTypeInfo("fixed64", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_FIXED32 -> FieldTypeInfo("fixed32", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_BOOL -> FieldTypeInfo("bool", false, false)
+        val typeInfo = when (descriptor.type) {
             DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING -> FieldTypeInfo("string", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_MESSAGE -> FieldTypeInfo(
-                fieldDescriptor.typeName.substringAfterLast("."),
-                false,
-                true,
-                fieldDescriptor.typeName
-            )
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT32,
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_SINT32,
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_SFIXED32 -> FieldTypeInfo("int32", false, false)
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64,
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_SINT64,
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_SFIXED64 -> FieldTypeInfo("int64", false, false)
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_UINT32,
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_FIXED32 -> FieldTypeInfo("uint32", false, false)
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_UINT64,
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_FIXED64 -> FieldTypeInfo("uint64", false, false)
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_BOOL -> FieldTypeInfo("bool", false, false)
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_FLOAT -> FieldTypeInfo("float", false, false)
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_DOUBLE -> FieldTypeInfo("double", false, false)
             DescriptorProtos.FieldDescriptorProto.Type.TYPE_BYTES -> FieldTypeInfo("bytes", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_UINT32 -> FieldTypeInfo("uint32", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_ENUM -> FieldTypeInfo(
-                fieldDescriptor.typeName.substringAfterLast("."),
-                true,
-                false,
-                fieldDescriptor.typeName
-            )
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_SFIXED32 -> FieldTypeInfo("sfixed32", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_SFIXED64 -> FieldTypeInfo("sfixed64", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_SINT32 -> FieldTypeInfo("sint32", false, false)
-            DescriptorProtos.FieldDescriptorProto.Type.TYPE_SINT64 -> FieldTypeInfo("sint64", false, false)
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_ENUM -> {
+                val typeName = descriptor.typeName.substringAfterLast('.')
+                FieldTypeInfo(typeName, true, false)
+            }
+            DescriptorProtos.FieldDescriptorProto.Type.TYPE_MESSAGE -> {
+                val typeName = descriptor.typeName.substringAfterLast('.')
+                FieldTypeInfo(typeName, false, true)
+            }
             else -> FieldTypeInfo("unknown", false, false)
         }
 
+        // Convert proto snake_case field name to camelCase
+        val camelCaseName = descriptor.name
+            .split("_")
+            .mapIndexed { i, part -> if (i == 0) part else part.replaceFirstChar { it.uppercase() } }
+            .joinToString("")
+
         return ParsedField(
-            name = fieldDescriptor.name,
-            protoName = fieldDescriptor.name,
+            name = camelCaseName,
+            protoName = descriptor.name,
             type = typeInfo.type,
-            number = fieldDescriptor.number,
+            number = descriptor.number,
             isRepeated = isRepeated,
             isOptional = isOptional,
             isEnum = typeInfo.isEnum,
             isMessage = typeInfo.isMessage,
-            typeName = typeInfo.typeName
+            typeName = descriptor.typeName
         )
     }
 
     private fun parseEnum(
-        enumDescriptor: DescriptorProtos.EnumDescriptorProto,
-        packagePrefix: String
+        descriptor: DescriptorProtos.EnumDescriptorProto,
+        packageName: String
     ): ParsedEnum {
-        val fullName = "$packagePrefix.${enumDescriptor.name}"
-
-        val values = enumDescriptor.valueList.map { valueDescriptor ->
-            ParsedEnumValue(
-                name = valueDescriptor.name,
-                number = valueDescriptor.number
-            )
+        val values = descriptor.valueList.map { value ->
+            ParsedEnumValue(name = value.name, number = value.number)
         }
-
         return ParsedEnum(
-            name = enumDescriptor.name,
-            fullName = fullName,
+            name = descriptor.name,
+            fullName = "$packageName.${descriptor.name}",
             values = values
         )
     }
 }
-
-
 

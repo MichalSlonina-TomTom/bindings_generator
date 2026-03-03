@@ -1,6 +1,8 @@
 package com.tomtom.sdk.tools.bindingsgenerator
 
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import kotlin.test.assertEquals
@@ -16,6 +18,17 @@ class ExactOutputComparisonTest {
 
     @TempDir
     lateinit var tempDir: File
+
+    @BeforeEach
+    fun requireProtoc() {
+        val isProtocAvailable = try {
+            val process = ProcessBuilder("protoc", "--version").start()
+            process.waitFor() == 0
+        } catch (e: Exception) {
+            false
+        }
+        Assumptions.assumeTrue(isProtocAvailable, "protoc not installed - skipping test")
+    }
 
     /**
      * Helper function to normalize whitespace and line endings for comparison
