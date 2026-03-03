@@ -104,14 +104,15 @@ class ExactOutputComparisonTest {
         val generatedContent = generatedHeader.readText()
 
         // Verify key structural elements
-        assertTrue(generatedContent.contains("#ifndef PROTOBUF_HELPERS_HPP"),
+        assertTrue(generatedContent.contains("#ifndef PROTOBUF_HELPERS_HPP") ||
+                   generatedContent.contains("#pragma once"),
             "Should have include guard")
         assertTrue(generatedContent.contains("namespace protobuf_helpers"),
             "Should have protobuf_helpers namespace")
-        assertTrue(generatedContent.contains("toNative"),
-            "Should have toNative functions")
-        assertTrue(generatedContent.contains("toProto"),
-            "Should have toProto functions")
+        assertTrue(generatedContent.contains("ToNative"),
+            "Should have ToNative functions")
+        assertTrue(generatedContent.contains("ToProto"),
+            "Should have ToProto functions")
         assertTrue(generatedContent.contains("TomTom"),
             "Should have copyright header")
         assertTrue(generatedContent.contains("AUTO-GENERATED"),
@@ -142,10 +143,10 @@ class ExactOutputComparisonTest {
             "Should include header file")
         assertTrue(implContent.contains("namespace protobuf_helpers"),
             "Should have protobuf_helpers namespace")
-        assertTrue(implContent.contains("toNative"),
-            "Should implement toNative functions")
-        assertTrue(implContent.contains("toProto"),
-            "Should implement toProto functions")
+        assertTrue(implContent.contains("ToNative"),
+            "Should implement ToNative functions")
+        assertTrue(implContent.contains("ToProto"),
+            "Should implement ToProto functions")
         assertTrue(implContent.contains("TomTom"),
             "Should have copyright header")
     }
@@ -234,13 +235,13 @@ class ExactOutputComparisonTest {
         val headerContent = headerFile.readText()
         val implContent = implFile.readText()
 
-        // C++ should have both toNative and toProto for Language enum
-        assertTrue(headerContent.contains("Language toNative") ||
-                   headerContent.contains("toNative") && headerContent.contains("Language"),
-            "Header should declare toNative for Language enum")
-        assertTrue(headerContent.contains("Language toProto") ||
-                   headerContent.contains("toProto") && headerContent.contains("Language"),
-            "Header should declare toProto for Language enum")
+        // C++ should have both ToNative and ToProto for Language enum
+        assertTrue(headerContent.contains("Language ToNative") ||
+                   headerContent.contains("ToNative") && headerContent.contains("Language"),
+            "Header should declare ToNative for Language enum")
+        assertTrue(headerContent.contains("Language ToProto") ||
+                   headerContent.contains("ToProto") && headerContent.contains("Language"),
+            "Header should declare ToProto for Language enum")
 
         // Kotlin should have extension functions
         val kotlinGenerator = KotlinGenerator()

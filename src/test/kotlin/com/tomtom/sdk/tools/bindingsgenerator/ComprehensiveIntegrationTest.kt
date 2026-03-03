@@ -217,14 +217,14 @@ class GeneratorOutputStructureTest {
         assertTrue(headerContent.contains("namespace protobuf_helpers"), "Should have namespace")
         assertTrue(headerContent.contains("TestMessage"), "Should reference TestMessage")
         assertTrue(headerContent.contains("TestEnum"), "Should reference TestEnum")
-        assertTrue(headerContent.contains("toNative"), "Should declare toNative")
-        assertTrue(headerContent.contains("toProto"), "Should declare toProto")
+        assertTrue(headerContent.contains("ToNative"), "Should declare ToNative")
+        assertTrue(headerContent.contains("ToProto"), "Should declare ToProto")
 
         // Implementation checks
         assertTrue(implContent.contains("#include \"test.hpp\""), "Should include header")
         assertTrue(implContent.contains("namespace protobuf_helpers"), "Should have namespace")
-        assertTrue(implContent.contains("toNative"), "Should implement toNative")
-        assertTrue(implContent.contains("toProto"), "Should implement toProto")
+        assertTrue(implContent.contains("ToNative"), "Should implement ToNative")
+        assertTrue(implContent.contains("ToProto"), "Should implement ToProto")
 
         println("✓ C++ generator produces correct structure")
     }

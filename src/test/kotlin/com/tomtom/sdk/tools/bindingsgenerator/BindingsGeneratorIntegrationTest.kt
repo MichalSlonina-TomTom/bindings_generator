@@ -64,8 +64,8 @@ class BindingsGeneratorIntegrationTest {
         assertTrue(headerContent.contains("#ifndef"), "Header should have include guard")
         assertTrue(headerContent.contains("namespace protobuf_helpers"),
             "Header should have protobuf_helpers namespace")
-        assertTrue(headerContent.contains("toNative"), "Header should have toNative functions")
-        assertTrue(headerContent.contains("toProto"), "Header should have toProto functions")
+        assertTrue(headerContent.contains("ToNative"), "Header should have ToNative functions")
+        assertTrue(headerContent.contains("ToProto"), "Header should have ToProto functions")
 
         val implContent = implFile.readText()
         assertTrue(implContent.contains("#include"), "Implementation should include header")

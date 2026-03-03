@@ -56,8 +56,8 @@ class CppGeneratorTest {
         assertTrue(content.contains("namespace protobuf_helpers"))
 
         // Should have conversion functions
-        assertTrue(content.contains("toNative"))
-        assertTrue(content.contains("toProto"))
+        assertTrue(content.contains("ToNative"))
+        assertTrue(content.contains("ToProto"))
 
         // Should have copyright
         assertTrue(content.contains("TomTom"))
@@ -101,8 +101,8 @@ class CppGeneratorTest {
         assertTrue(content.contains("namespace protobuf_helpers"))
 
         // Should have function implementations
-        assertTrue(content.contains("toNative"))
-        assertTrue(content.contains("toProto"))
+        assertTrue(content.contains("ToNative"))
+        assertTrue(content.contains("ToProto"))
 
         // Should have copyright
         assertTrue(content.contains("TomTom"))
@@ -413,6 +413,106 @@ class KotlinGeneratorTest {
             content.contains("else -> Status.") || content.contains("else -> com.test.Status."),
             "Must not silently fall back to a default enum value"
         )
+    }
+}
+
+/**
+ * Unit tests for GeneratorConfig behaviour in CppGenerator
+ */
+class GeneratorConfigTest {
+
+    @TempDir
+    lateinit var tempDir: File
+
+    private val simpleParsedFile = ParsedProtoFile(
+        packageName = "com.test",
+        protoPackage = "com.test",
+        messages = emptyList(),
+        enums = listOf(
+            ParsedEnum("Status", "com.test.Status", listOf(ParsedEnumValue("kStatusOk", 0)))
+        )
+    )
+
+    @Test
+    fun `default config emits ifndef include guard`() {
+        val generator = CppGenerator()
+        val header = File(tempDir, "out.hpp")
+        generator.generateHeader(simpleParsedFile, header)
+        val content = header.readText()
+        assertTrue(content.contains("#ifndef OUT_HPP"), "Should have #ifndef guard")
+        assertTrue(content.contains("#define OUT_HPP"), "Should have #define")
+        assertTrue(content.contains("#endif // OUT_HPP"), "Should have #endif")
+        assertFalse(content.contains("#pragma once"), "Should not have #pragma once by default")
+    }
+
+    @Test
+    fun `pragma once config emits pragma once instead of ifndef guard`() {
+        val generator = CppGenerator(GeneratorConfig(usePragmaOnce = true))
+        val header = File(tempDir, "out.hpp")
+        generator.generateHeader(simpleParsedFile, header)
+        val content = header.readText()
+        assertTrue(content.contains("#pragma once"), "Should have #pragma once")
+        assertFalse(content.contains("#ifndef"), "Should not have #ifndef")
+        assertFalse(content.contains("#endif"), "Should not have #endif")
+    }
+
+    @Test
+    fun `default config emits protobuf_helpers namespace`() {
+        val generator = CppGenerator()
+        val header = File(tempDir, "out.hpp")
+        generator.generateHeader(simpleParsedFile, header)
+        assertTrue(header.readText().contains("namespace protobuf_helpers {"))
+    }
+
+    @Test
+    fun `nested namespaces config emits multiple nested namespace blocks`() {
+        val config = GeneratorConfig(namespaces = listOf("tomtom", "sdk", "bindings", "internal"))
+        val generator = CppGenerator(config)
+        val header = File(tempDir, "out.hpp")
+        val impl = File(tempDir, "out.cpp")
+        generator.generateHeader(simpleParsedFile, header)
+        generator.generateImplementation(simpleParsedFile, header, impl)
+
+        listOf(header, impl).forEach { file ->
+            val content = file.readText()
+            assertTrue(content.contains("namespace tomtom {"), "${file.name} should open tomtom namespace")
+            assertTrue(content.contains("namespace sdk {"), "${file.name} should open sdk namespace")
+            assertTrue(content.contains("namespace bindings {"), "${file.name} should open bindings namespace")
+            assertTrue(content.contains("namespace internal {"), "${file.name} should open internal namespace")
+            assertTrue(content.contains("}  // namespace tomtom"), "${file.name} should close tomtom namespace")
+            assertTrue(content.contains("}  // namespace internal"), "${file.name} should close internal namespace")
+        }
+    }
+
+    @Test
+    fun `generator emits PascalCase ToNative and ToProto function names`() {
+        val generator = CppGenerator()
+        val header = File(tempDir, "out.hpp")
+        val impl = File(tempDir, "out.cpp")
+        generator.generateHeader(simpleParsedFile, header)
+        generator.generateImplementation(simpleParsedFile, header, impl)
+
+        listOf(header, impl).forEach { file ->
+            val content = file.readText()
+            assertTrue(content.contains("ToNative"), "${file.name} should use PascalCase ToNative")
+            assertTrue(content.contains("ToProto"), "${file.name} should use PascalCase ToProto")
+            assertFalse(content.contains(" toNative"), "${file.name} must not use camelCase toNative")
+            assertFalse(content.contains(" toProto"), "${file.name} must not use camelCase toProto")
+        }
+    }
+
+    @Test
+    fun `extra includes appear in generated header`() {
+        val config = GeneratorConfig(extraIncludes = listOf(
+            "#include <mylib/native.hpp>",
+            "#include \"my_proto.pb.h\""
+        ))
+        val generator = CppGenerator(config)
+        val header = File(tempDir, "out.hpp")
+        generator.generateHeader(simpleParsedFile, header)
+        val content = header.readText()
+        assertTrue(content.contains("#include <mylib/native.hpp>"), "Should have extra system include")
+        assertTrue(content.contains("#include \"my_proto.pb.h\""), "Should have extra proto include")
     }
 }
 

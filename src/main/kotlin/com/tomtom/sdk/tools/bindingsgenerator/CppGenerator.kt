@@ -18,7 +18,28 @@ private fun copyrightHeader() = """
 // AUTO-GENERATED FILE. DO NOT MODIFY.
 """.trimStart()
 
-class CppGenerator {
+/**
+ * Configuration for the C++ generator.
+ *
+ * @param namespaces Ordered list of namespace segments to nest. Defaults to ["protobuf_helpers"].
+ * @param usePragmaOnce Emit `#pragma once` instead of `#ifndef`/`#define`/`#endif`. Defaults to false.
+ * @param extraIncludes Additional `#include` lines to emit after the standard ones. Defaults to empty.
+ */
+data class GeneratorConfig(
+    val namespaces: List<String> = listOf("protobuf_helpers"),
+    val usePragmaOnce: Boolean = false,
+    val extraIncludes: List<String> = emptyList()
+) {
+    companion object {
+        val DEFAULT = GeneratorConfig()
+    }
+}
+
+class CppGenerator(private val config: GeneratorConfig = GeneratorConfig.DEFAULT) {
+
+    // toNative / toProto in PascalCase
+    private val toNativeName = "ToNative"
+    private val toProtoName = "ToProto"
 
     fun generateHeader(parsedFile: ParsedProtoFile, outputFile: File) {
         val guardName = outputFile.name
@@ -29,11 +50,19 @@ class CppGenerator {
         val content = buildString {
             append(copyrightHeader())
             appendLine()
-            appendLine("#ifndef $guardName")
-            appendLine("#define $guardName")
+            if (config.usePragmaOnce) {
+                appendLine("#pragma once")
+            } else {
+                appendLine("#ifndef $guardName")
+                appendLine("#define $guardName")
+            }
             appendLine()
             appendLine("#include <string>")
             appendLine("#include <vector>")
+            if (config.extraIncludes.isNotEmpty()) {
+                appendLine()
+                config.extraIncludes.forEach { appendLine(it) }
+            }
             appendLine()
 
             val allMessages = collectAllMessages(parsedFile.messages)
@@ -43,15 +72,17 @@ class CppGenerator {
                 appendLine()
             }
 
-            appendLine("namespace protobuf_helpers {")
+            openNamespaces()
             appendLine()
 
             appendEnumConversions(parsedFile.enums)
             appendMessageConversions(parsedFile.messages, parsedFile.enums)
 
-            appendLine("} // namespace protobuf_helpers")
-            appendLine()
-            appendLine("#endif // $guardName")
+            closeNamespaces()
+            if (!config.usePragmaOnce) {
+                appendLine()
+                appendLine("#endif // $guardName")
+            }
         }
 
         outputFile.writeText(content)
@@ -63,16 +94,25 @@ class CppGenerator {
             appendLine()
             appendLine("#include \"${headerFile.name}\"")
             appendLine()
-            appendLine("namespace protobuf_helpers {")
+
+            openNamespaces()
             appendLine()
 
             appendEnumImplementations(parsedFile.enums)
             appendMessageImplementations(parsedFile.messages, parsedFile.enums)
 
-            appendLine("} // namespace protobuf_helpers")
+            closeNamespaces()
         }
 
         outputFile.writeText(content)
+    }
+
+    private fun StringBuilder.openNamespaces() {
+        config.namespaces.forEach { ns -> appendLine("namespace $ns {") }
+    }
+
+    private fun StringBuilder.closeNamespaces() {
+        config.namespaces.reversed().forEach { ns -> appendLine("}  // namespace $ns") }
     }
 
     private fun collectAllMessages(messages: List<ParsedMessage>): List<ParsedMessage> {
@@ -94,8 +134,8 @@ class CppGenerator {
         enums.forEach { enum ->
             val nativeName = enum.name
             appendLine("// Conversion functions for $nativeName")
-            appendLine("$nativeName toNative(const ${getProtoEnumName(enum)} proto);")
-            appendLine("${getProtoEnumName(enum)} toProto(const $nativeName native);")
+            appendLine("$nativeName $toNativeName(const ${getProtoEnumName(enum)} proto);")
+            appendLine("${getProtoEnumName(enum)} $toProtoName(const $nativeName native);")
             appendLine()
         }
     }
@@ -104,8 +144,8 @@ class CppGenerator {
         messages.forEach { message ->
             val nativeName = message.name
             appendLine("// Conversion functions for $nativeName")
-            appendLine("$nativeName toNative(const ${getProtoMessageName(message)} proto);")
-            appendLine("${getProtoMessageName(message)} toProto(const $nativeName& native);")
+            appendLine("$nativeName $toNativeName(const ${getProtoMessageName(message)} proto);")
+            appendLine("${getProtoMessageName(message)} $toProtoName(const $nativeName& native);")
             appendLine()
             appendMessageConversions(message.nestedMessages, message.nestedEnums)
             appendEnumConversions(message.nestedEnums)
@@ -117,7 +157,7 @@ class CppGenerator {
             val nativeName = enum.name
             val protoName = getProtoEnumName(enum)
 
-            appendLine("$nativeName toNative(const $protoName proto) {")
+            appendLine("$nativeName $toNativeName(const $protoName proto) {")
             appendLine("    switch (proto) {")
             enum.values.forEach { value ->
                 val nativeValue = convertToNativeEnumValue(value.name, enum.name)
@@ -128,7 +168,7 @@ class CppGenerator {
             appendLine("}")
             appendLine()
 
-            appendLine("$protoName toProto(const $nativeName native) {")
+            appendLine("$protoName $toProtoName(const $nativeName native) {")
             appendLine("    switch (native) {")
             enum.values.forEach { value ->
                 val nativeValue = convertToNativeEnumValue(value.name, enum.name)
@@ -147,8 +187,8 @@ class CppGenerator {
             val protoName = getProtoMessageName(message)
             val allEnums = knownEnums + message.nestedEnums
 
-            // toNative implementation
-            appendLine("$nativeName toNative(const $protoName proto) {")
+            // ToNative implementation
+            appendLine("$nativeName $toNativeName(const $protoName proto) {")
             appendLine("    $nativeName result;")
             message.fields.forEach { field ->
                 val fieldAccess = generateToNativeFieldMapping(field, allEnums)
@@ -160,8 +200,8 @@ class CppGenerator {
             appendLine("}")
             appendLine()
 
-            // toProto implementation
-            appendLine("$protoName toProto(const $nativeName& native) {")
+            // ToProto implementation
+            appendLine("$protoName $toProtoName(const $nativeName& native) {")
             appendLine("    $protoName result;")
             message.fields.forEach { field ->
                 val fieldAccess = generateToProtoFieldMapping(field, allEnums)
@@ -186,47 +226,35 @@ class CppGenerator {
 
     private fun generateToNativeFieldMapping(field: ParsedField, knownEnums: List<ParsedEnum>): String? {
         return when {
-            field.isRepeated -> {
-                "for (const auto& item : proto.${field.protoName}()) { result.${field.name}.push_back(${getNativeConversion(field, knownEnums, "item")}); }"
-            }
-            field.isEnum -> "result.${field.name} = toNative(proto.${field.protoName}());"
-            field.isMessage -> "result.${field.name} = toNative(proto.${field.protoName}());"
+            field.isRepeated -> "for (const auto& item : proto.${field.protoName}()) { result.${field.name}.push_back(${getNativeConversion(field, knownEnums, "item")}); }"
+            field.isEnum -> "result.${field.name} = $toNativeName(proto.${field.protoName}());"
+            field.isMessage -> "result.${field.name} = $toNativeName(proto.${field.protoName}());"
             else -> "result.${field.name} = proto.${field.protoName}();"
         }
     }
 
     private fun generateToProtoFieldMapping(field: ParsedField, knownEnums: List<ParsedEnum>): String? {
         return when {
-            field.isRepeated -> "item" // handled specially in caller
-            field.isEnum -> "result.set_${field.protoName}(toProto(native.${field.name}));"
-            field.isMessage -> "result.mutable_${field.protoName}()->CopyFrom(toProto(native.${field.name}));"
-            else -> when (field.type) {
-                "string" -> "result.set_${field.protoName}(native.${field.name});"
-                else -> "result.set_${field.protoName}(native.${field.name});"
-            }
+            field.isRepeated -> "item"
+            field.isEnum -> "result.set_${field.protoName}($toProtoName(native.${field.name}));"
+            field.isMessage -> "result.mutable_${field.protoName}()->CopyFrom($toProtoName(native.${field.name}));"
+            else -> "result.set_${field.protoName}(native.${field.name});"
         }
     }
 
     private fun getNativeConversion(field: ParsedField, knownEnums: List<ParsedEnum>, accessor: String): String {
         return when {
-            field.isEnum -> "toNative($accessor)"
-            field.isMessage -> "toNative($accessor)"
+            field.isEnum -> "$toNativeName($accessor)"
+            field.isMessage -> "$toNativeName($accessor)"
             else -> accessor
         }
     }
 
-    private fun getProtoEnumName(enum: ParsedEnum): String {
-        return enum.fullName.replace('.', '_').let { it }
-            .split(".").last()
-            .let { enum.name }
-    }
+    private fun getProtoEnumName(enum: ParsedEnum): String = enum.name
 
-    private fun getProtoMessageName(message: ParsedMessage): String {
-        return message.name
-    }
+    private fun getProtoMessageName(message: ParsedMessage): String = message.name
 
     private fun convertToNativeEnumValue(protoValueName: String, enumName: String): String {
-        // Proto values are like kEnumNameValue, native are like VALUE
         val prefix = "k${enumName}"
         return if (protoValueName.startsWith(prefix)) {
             protoValueName.substring(prefix.length).uppercase()
@@ -235,4 +263,3 @@ class CppGenerator {
         }
     }
 }
-
