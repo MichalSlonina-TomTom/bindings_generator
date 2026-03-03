@@ -324,6 +324,124 @@ class ExactOutputComparisonTest {
     }
 
     // -------------------------------------------------------------------------
+    // Text-generation exact output comparison (per-proto)
+    // -------------------------------------------------------------------------
+
+    private fun tgProtoDir(): File =
+        File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file).parentFile
+
+    private fun tgExpectedDir(protoName: String): File =
+        File(javaClass.getResource("/text-generation/expected/$protoName/protobuf_helpers.hpp")!!.file).parentFile
+
+    private fun generateTgFiles(protoName: String, outDir: File): Triple<File, File, File> {
+        val protoFile = File(tgProtoDir(), "$protoName.proto")
+        val parser = ProtoParser()
+        val parsedFile = parser.parseProtoFile(protoFile, listOf(tgProtoDir()))
+
+        val headerFile = File(outDir, "protobuf_helpers.hpp")
+        val implFile = File(outDir, "protobuf_helpers.cpp")
+        val cppGenerator = CppGenerator()
+        cppGenerator.generateHeader(parsedFile, headerFile)
+        cppGenerator.generateImplementation(parsedFile, headerFile, implFile)
+
+        val kotlinGenerator = KotlinGenerator()
+        kotlinGenerator.generateMapper(parsedFile, outDir)
+        val kotlinFile = outDir.walkTopDown().first { it.name == "NativeModelMapper.kt" }
+
+        return Triple(headerFile, implFile, kotlinFile)
+    }
+
+    @Test
+    fun `text-generation audio_instruction hpp matches expected output`() {
+        val (header, _, _) = generateTgFiles("audio_instruction", tempDir)
+        assertEquals(
+            File(tgExpectedDir("audio_instruction"), "protobuf_helpers.hpp").readText(),
+            header.readText(),
+            "Generated hpp does not match text-generation/audio_instruction expected reference"
+        )
+    }
+
+    @Test
+    fun `text-generation audio_instruction cpp matches expected output`() {
+        val (_, impl, _) = generateTgFiles("audio_instruction", tempDir)
+        assertEquals(
+            File(tgExpectedDir("audio_instruction"), "protobuf_helpers.cpp").readText(),
+            impl.readText(),
+            "Generated cpp does not match text-generation/audio_instruction expected reference"
+        )
+    }
+
+    @Test
+    fun `text-generation audio_instruction NativeModelMapper_kt matches expected output`() {
+        val (_, _, kt) = generateTgFiles("audio_instruction", tempDir)
+        assertEquals(
+            File(tgExpectedDir("audio_instruction"), "NativeModelMapper.kt").readText(),
+            kt.readText(),
+            "Generated NativeModelMapper.kt does not match text-generation/audio_instruction expected reference"
+        )
+    }
+
+    @Test
+    fun `text-generation language hpp matches expected output`() {
+        val (header, _, _) = generateTgFiles("language", tempDir)
+        assertEquals(
+            File(tgExpectedDir("language"), "protobuf_helpers.hpp").readText(),
+            header.readText(),
+            "Generated hpp does not match text-generation/language expected reference"
+        )
+    }
+
+    @Test
+    fun `text-generation language cpp matches expected output`() {
+        val (_, impl, _) = generateTgFiles("language", tempDir)
+        assertEquals(
+            File(tgExpectedDir("language"), "protobuf_helpers.cpp").readText(),
+            impl.readText(),
+            "Generated cpp does not match text-generation/language expected reference"
+        )
+    }
+
+    @Test
+    fun `text-generation language NativeModelMapper_kt matches expected output`() {
+        val (_, _, kt) = generateTgFiles("language", tempDir)
+        assertEquals(
+            File(tgExpectedDir("language"), "NativeModelMapper.kt").readText(),
+            kt.readText(),
+            "Generated NativeModelMapper.kt does not match text-generation/language expected reference"
+        )
+    }
+
+    @Test
+    fun `text-generation text_generation hpp matches expected output`() {
+        val (header, _, _) = generateTgFiles("text_generation", tempDir)
+        assertEquals(
+            File(tgExpectedDir("text_generation"), "protobuf_helpers.hpp").readText(),
+            header.readText(),
+            "Generated hpp does not match text-generation/text_generation expected reference"
+        )
+    }
+
+    @Test
+    fun `text-generation text_generation cpp matches expected output`() {
+        val (_, impl, _) = generateTgFiles("text_generation", tempDir)
+        assertEquals(
+            File(tgExpectedDir("text_generation"), "protobuf_helpers.cpp").readText(),
+            impl.readText(),
+            "Generated cpp does not match text-generation/text_generation expected reference"
+        )
+    }
+
+    @Test
+    fun `text-generation text_generation NativeModelMapper_kt matches expected output`() {
+        val (_, _, kt) = generateTgFiles("text_generation", tempDir)
+        assertEquals(
+            File(tgExpectedDir("text_generation"), "NativeModelMapper.kt").readText(),
+            kt.readText(),
+            "Generated NativeModelMapper.kt does not match text-generation/text_generation expected reference"
+        )
+    }
+
+    // -------------------------------------------------------------------------
     // Junction-view-engine exact output comparison
     // -------------------------------------------------------------------------
 
