@@ -165,7 +165,7 @@ class ProtoParser {
         knownMessages: Set<String>
     ): ParsedField {
         val isRepeated = descriptor.label == DescriptorProtos.FieldDescriptorProto.Label.LABEL_REPEATED
-        val isOptional = descriptor.label == DescriptorProtos.FieldDescriptorProto.Label.LABEL_OPTIONAL
+        val isOptional = descriptor.proto3Optional
 
         data class FieldTypeInfo(val type: String, val isEnum: Boolean, val isMessage: Boolean)
 

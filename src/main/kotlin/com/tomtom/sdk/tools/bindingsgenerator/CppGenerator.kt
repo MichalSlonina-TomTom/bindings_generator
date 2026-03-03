@@ -227,6 +227,8 @@ class CppGenerator(private val config: GeneratorConfig = GeneratorConfig.DEFAULT
     private fun generateToNativeFieldMapping(field: ParsedField, knownEnums: List<ParsedEnum>): String? {
         return when {
             field.isRepeated -> "for (const auto& item : proto.${field.protoName}()) { result.${field.name}.push_back(${getNativeConversion(field, knownEnums, "item")}); }"
+            field.isOptional && !field.isEnum && !field.isMessage ->
+                "if (proto.has_${field.protoName}()) { result.${field.name} = proto.${field.protoName}(); }"
             field.isEnum -> "result.${field.name} = $toNativeName(proto.${field.protoName}());"
             field.isMessage -> "result.${field.name} = $toNativeName(proto.${field.protoName}());"
             else -> "result.${field.name} = proto.${field.protoName}();"
@@ -236,6 +238,8 @@ class CppGenerator(private val config: GeneratorConfig = GeneratorConfig.DEFAULT
     private fun generateToProtoFieldMapping(field: ParsedField, knownEnums: List<ParsedEnum>): String? {
         return when {
             field.isRepeated -> "item"
+            field.isOptional && !field.isEnum && !field.isMessage ->
+                "if (native.${field.name}.has_value()) { result.set_${field.protoName}(native.${field.name}.value()); }"
             field.isEnum -> "result.set_${field.protoName}($toProtoName(native.${field.name}));"
             field.isMessage -> "result.mutable_${field.protoName}()->CopyFrom($toProtoName(native.${field.name}));"
             else -> "result.set_${field.protoName}(native.${field.name});"

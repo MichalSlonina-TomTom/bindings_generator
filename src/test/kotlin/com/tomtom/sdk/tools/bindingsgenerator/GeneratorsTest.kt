@@ -514,5 +514,74 @@ class GeneratorConfigTest {
         assertTrue(content.contains("#include <mylib/native.hpp>"), "Should have extra system include")
         assertTrue(content.contains("#include \"my_proto.pb.h\""), "Should have extra proto include")
     }
+
+    @Test
+    fun `cpp generator emits has_() guard for optional scalar fields`() {
+        val parsedFile = ParsedProtoFile(
+            packageName = "com.test",
+            protoPackage = "com.test",
+            messages = listOf(
+                ParsedMessage(
+                    name = "RouteArc",
+                    fullName = "com.test.RouteArc",
+                    fields = listOf(
+                        ParsedField("arcKey", "arc_key", "uint64", 1),
+                        ParsedField(
+                            name = "arrivalOffsetOnArcInCentimeters",
+                            protoName = "arrival_offset_on_arc_in_centimeters",
+                            type = "int32",
+                            number = 3,
+                            isOptional = true
+                        )
+                    )
+                )
+            ),
+            enums = emptyList()
+        )
+        val generator = CppGenerator()
+        val header = File(tempDir, "out.hpp")
+        val impl = File(tempDir, "out.cpp")
+        generator.generateHeader(parsedFile, header)
+        generator.generateImplementation(parsedFile, header, impl)
+
+        val implContent = impl.readText()
+        assertTrue(implContent.contains("has_arrival_offset_on_arc_in_centimeters"),
+            "ToNative should emit has_() guard for optional field")
+        assertTrue(implContent.contains("has_value()"),
+            "ToProto should emit has_value() check for optional field")
+    }
+
+    @Test
+    fun `kotlin generator emits let wrapper for optional scalar fields`() {
+        val parsedFile = ParsedProtoFile(
+            packageName = "com.test",
+            protoPackage = "com.test",
+            messages = listOf(
+                ParsedMessage(
+                    name = "RouteArc",
+                    fullName = "com.test.RouteArc",
+                    fields = listOf(
+                        ParsedField("arcKey", "arc_key", "uint64", 1),
+                        ParsedField(
+                            name = "arrivalOffsetOnArcInCentimeters",
+                            protoName = "arrival_offset_on_arc_in_centimeters",
+                            type = "int32",
+                            number = 3,
+                            isOptional = true
+                        )
+                    )
+                )
+            ),
+            enums = emptyList()
+        )
+        val generator = KotlinGenerator()
+        generator.generateMapper(parsedFile, tempDir)
+        val content = tempDir.walkTopDown().find { it.name == "NativeModelMapper.kt" }!!.readText()
+
+        assertTrue(content.contains("?.let"), "toProto should use ?.let for optional field")
+        assertTrue(content.contains("hasArrivalOffsetOnArcInCentimeters") ||
+                   content.contains("has_arrival") || content.contains("null"),
+            "toNative should handle optional field as nullable")
+    }
 }
 

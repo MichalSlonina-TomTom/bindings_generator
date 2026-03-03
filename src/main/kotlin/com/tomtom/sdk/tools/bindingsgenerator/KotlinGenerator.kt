@@ -196,6 +196,14 @@ class KotlinGenerator {
                     field.name
                 )
             }
+            field.isOptional && !field.isEnum && !field.isMessage -> {
+                builder.addStatement(
+                    "%L.%L?.let { %L = it }",
+                    receiver,
+                    field.name,
+                    field.protoName
+                )
+            }
             field.isEnum -> {
                 builder.addStatement(
                     "%L = %L.%L.toProto()",
@@ -235,6 +243,16 @@ class KotlinGenerator {
                 builder.addStatement(
                     "%L = %L.%LList",
                     field.name,
+                    receiver,
+                    field.protoName
+                )
+            }
+            field.isOptional && !field.isEnum && !field.isMessage -> {
+                builder.addStatement(
+                    "%L = if (%L.has%L()) %L.%L else null",
+                    field.name,
+                    receiver,
+                    field.protoName.split("_").joinToString("") { it.replaceFirstChar { c -> c.uppercase() } },
                     receiver,
                     field.protoName
                 )

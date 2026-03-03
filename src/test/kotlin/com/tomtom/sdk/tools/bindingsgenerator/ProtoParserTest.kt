@@ -301,5 +301,37 @@ class ProtoParserTest {
         assertEquals(1, result.messages.size)
         assertEquals("Main", result.messages.first().name)
     }
+
+    @Test
+    fun `test parseProtoFile recognises optional scalar fields`() {
+        requireProtoc()
+
+        val protoContent = """
+            syntax = "proto3";
+            package com.test;
+
+            message RouteArc {
+              uint64 arc_key = 1;
+              int32  tail_offset_on_route_in_centimeters = 2;
+              optional int32 arrival_offset_on_arc_in_centimeters = 3;
+            }
+        """.trimIndent()
+
+        val protoFile = File(tempDir, "route_arc.proto")
+        protoFile.writeText(protoContent)
+
+        val parser = ProtoParser()
+        val result = parser.parseProtoFile(protoFile, emptyList())
+
+        val msg = result.messages.first()
+        assertEquals("RouteArc", msg.name)
+        assertEquals(3, msg.fields.size)
+
+        val required = msg.fields.find { it.protoName == "arc_key" }!!
+        assertFalse(required.isOptional, "arc_key should not be optional")
+
+        val optional = msg.fields.find { it.protoName == "arrival_offset_on_arc_in_centimeters" }!!
+        assertTrue(optional.isOptional, "arrival_offset_on_arc_in_centimeters should be optional")
+    }
 }
 
