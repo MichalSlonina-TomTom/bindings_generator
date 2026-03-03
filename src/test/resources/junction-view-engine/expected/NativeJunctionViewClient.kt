@@ -26,12 +26,7 @@ import com.tomtom.sdk.navigation.junctionview.JunctionViewInformation
 import com.tomtom.sdk.navigation.junctionview.JunctionViewType
 import com.tomtom.sdk.navigation.junctionview.TimeOfDayType
 import com.tomtom.sdk.navigation.junctionview.protos.JunctionViewInformationOuterClass.JunctionViewResult
-import com.tomtom.sdk.navigation.junctionview.protos.junctionViewRequest
-import com.tomtom.sdk.navigation.junctionview.protos.routeArc
-import com.tomtom.sdk.navigation.junctionview.protos.routeWindow
 import com.tomtom.sdk.navigation.junctionviewengine.common.internal.JunctionViewRequest
-import com.tomtom.sdk.navigation.junctionview.protos.JunctionViewInformationOuterClass.JunctionViewDaylightType as ProtoJunctionViewDaylightType
-import com.tomtom.sdk.navigation.junctionview.protos.JunctionViewInformationOuterClass.JunctionViewType as ProtoJunctionViewType
 
 /**
  * Native [JunctionViewClient] implementation.
@@ -44,7 +39,8 @@ internal class NativeJunctionViewClient : JunctionViewClient {
     override fun generateJunctionViews(request: JunctionViewRequest): List<JunctionViewInformation>? =
         synchronized(lock) {
             if (nativeJunctionViewClientHandle != 0L) {
-                generateJunctionViews(nativeJunctionViewClientHandle, request.toProto()).fromProto()
+                val responseBytes = generateJunctionViews(nativeJunctionViewClientHandle, request.toProto().toByteArray())
+                JunctionViewResult.parseFrom(responseBytes).toNative()
             } else {
                 Logger.i(TAG) {
                     "Do not generate junction views as the handle is invalid. Most likely the client has been closed."
@@ -98,62 +94,4 @@ internal class NativeJunctionViewClient : JunctionViewClient {
     private external fun createWithUnifiedMapAccess(ndsStoreAccess: Long): Long
 
     private external fun destroy(address: Long)
-
-    private fun JunctionViewRequest.toProto(): ByteArray {
-        return junctionViewRequest {
-            routeId = this@toProto.routeId.toString()
-            routeWindow = routeWindow {
-                routeArcs += this@toProto.routeWindow.routeArcs.map { routeWindowArc ->
-                    routeArc {
-                        arcKey = routeWindowArc.featureReference.featureId.toLong()
-                        featureVersion = routeWindowArc.featureReference.featureVersion.toLong()
-                        tailOffsetOnRouteInCentimeters = routeWindowArc.arcTailOffset.inWholeCentimeters().toInt()
-                        routeWindowArc.arrivalOffsetOnArc?.let {
-                            arrivalOffsetOnArcInCentimeters = it.inWholeCentimeters().toInt()
-                        }
-                    }
-                }
-            }
-            instructionOffsetInMeters = this@toProto.instructionOffset.inWholeMeters().toInt()
-        }.toByteArray()
-    }
-
-    @OptIn(BetaJunctionViewApi::class)
-    fun ByteArray.fromProto(): List<JunctionViewInformation>? {
-        val junctionViewResult = JunctionViewResult.parseFrom(this)
-        return if (junctionViewResult.hasError()) {
-            Logger.w(TAG) {
-                "Failed to generate junction views with the following error: ${junctionViewResult.error.message}"
-            }
-            null
-        } else {
-            junctionViewResult.junctionViews.junctionViewInformationListOrBuilderList.map {
-                JunctionViewInformation(
-                    image = it.dataPng.toByteArray(),
-                    type = it.type.convertJunctionViewType(),
-                    timeOfDayType = it.daylightType.convertJunctionViewDaylightType(),
-                    startRouteOffset = Distance.centimeters(it.startRouteOffsetInCentimeters),
-                    endRouteOffset = Distance.Companion.centimeters(it.endRouteOffsetInCentimeters),
-                )
-            }
-        }
-    }
-
-    @OptIn(BetaJunctionViewApi::class)
-    private fun ProtoJunctionViewType.convertJunctionViewType() = when (this) {
-        ProtoJunctionViewType.kJunction -> JunctionViewType.Junction
-        ProtoJunctionViewType.kSignboard -> JunctionViewType.Signboard
-        ProtoJunctionViewType.kEtc -> JunctionViewType.ElectronicTollCollection
-        ProtoJunctionViewType.UNRECOGNIZED ->
-            throw IllegalArgumentException("Unexpected junction view type $this.")
-    }
-
-    @OptIn(BetaJunctionViewApi::class)
-    private fun ProtoJunctionViewDaylightType.convertJunctionViewDaylightType() = when (this) {
-        ProtoJunctionViewDaylightType.kDay -> TimeOfDayType.Day
-        ProtoJunctionViewDaylightType.kNight -> TimeOfDayType.Night
-        ProtoJunctionViewDaylightType.kAlways -> TimeOfDayType.Any
-        ProtoJunctionViewDaylightType.UNRECOGNIZED ->
-            throw IllegalArgumentException("Unexpected junction view time of day type $this.")
-    }
 }
