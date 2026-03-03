@@ -333,5 +333,35 @@ class ProtoParserTest {
         val optional = msg.fields.find { it.protoName == "arrival_offset_on_arc_in_centimeters" }!!
         assertTrue(optional.isOptional, "arrival_offset_on_arc_in_centimeters should be optional")
     }
+
+    @Test
+    fun `test parseProtoFile recognises oneof fields`() {
+        requireProtoc()
+
+        val protoContent = """
+            syntax = "proto3";
+            package com.test;
+
+            message Inner {}
+            message JunctionViewResult {
+              oneof Result {
+                string junction_views = 1;
+                Inner error = 2;
+              }
+            }
+        """.trimIndent()
+
+        val protoFile = File(tempDir, "oneof_test.proto")
+        protoFile.writeText(protoContent)
+
+        val parser = ProtoParser()
+        val result = parser.parseProtoFile(protoFile, emptyList())
+
+        val msg = result.messages.find { it.name == "JunctionViewResult" }!!
+        assertEquals(0, msg.fields.size, "Oneof members should not appear in regular fields")
+        assertEquals(1, msg.oneofs.size, "Should have one oneof")
+        assertEquals("Result", msg.oneofs.first().name)
+        assertEquals(2, msg.oneofs.first().fields.size, "Oneof should have two alternatives")
+    }
 }
 

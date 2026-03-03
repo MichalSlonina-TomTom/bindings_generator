@@ -139,11 +139,20 @@ class KotlinGenerator {
         val protoBuilderName = getProtoBuilderName(message, protoPackage)
 
         val bodyCode = CodeBlock.builder()
-
         bodyCode.beginControlFlow("return %L", protoBuilderName)
 
         message.fields.forEach { field ->
             generateToProtoFieldMapping(bodyCode, field, protoPackage, knownEnums, "this@toProto")
+        }
+        message.oneofs.forEach { oneof ->
+            bodyCode.beginControlFlow("when")
+            oneof.fields.forEach { field ->
+                bodyCode.addStatement(
+                    "this@toProto.%L != null -> %L = this@toProto.%L!!.toProto()",
+                    field.name, field.protoName, field.name
+                )
+            }
+            bodyCode.endControlFlow()
         }
 
         bodyCode.endControlFlow()
@@ -164,11 +173,24 @@ class KotlinGenerator {
         val protoClassName = ClassName(protoPackage, message.name)
 
         val bodyCode = CodeBlock.builder()
-
         bodyCode.beginControlFlow("return %T", nativeClassName)
 
         message.fields.forEach { field ->
             generateToNativeFieldMapping(bodyCode, field, protoPackage, knownEnums, "this@toNative")
+        }
+        message.oneofs.forEach { oneof ->
+            val oneofCaseClass = ClassName(protoPackage, "${message.name}.${oneof.name.replaceFirstChar { it.uppercase() }}Case")
+            bodyCode.beginControlFlow("%L = when (%L.%LCase)", oneof.name, "this@toNative", oneof.name)
+            oneof.fields.forEach { field ->
+                bodyCode.addStatement(
+                    "%T.%L -> this@toNative.%L.toNative()",
+                    oneofCaseClass,
+                    field.name.uppercase(),
+                    field.protoName
+                )
+            }
+            bodyCode.addStatement("else -> null")
+            bodyCode.endControlFlow()
         }
 
         bodyCode.endControlFlow()

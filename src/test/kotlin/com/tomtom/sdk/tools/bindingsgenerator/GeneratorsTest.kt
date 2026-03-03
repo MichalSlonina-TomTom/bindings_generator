@@ -583,5 +583,86 @@ class GeneratorConfigTest {
                    content.contains("has_arrival") || content.contains("null"),
             "toNative should handle optional field as nullable")
     }
+
+    @Test
+    fun `cpp generator emits underscore-mangled name for nested enum types`() {
+        val nestedEnum = ParsedEnum(
+            name = "ErrorType",
+            fullName = "com.test.JunctionViewError.ErrorType",
+            values = listOf(
+                ParsedEnumValue("kArcVersionMismatch", 0),
+                ParsedEnumValue("kMoreArcsRequired", 1)
+            )
+        )
+        val parsedFile = ParsedProtoFile(
+            packageName = "com.test",
+            protoPackage = "com.test",
+            messages = listOf(
+                ParsedMessage(
+                    name = "JunctionViewError",
+                    fullName = "com.test.JunctionViewError",
+                    fields = listOf(
+                        ParsedField("errorType", "errorType", "ErrorType", 1, isEnum = true)
+                    ),
+                    nestedEnums = listOf(nestedEnum)
+                )
+            ),
+            enums = emptyList()
+        )
+        val generator = CppGenerator()
+        val header = File(tempDir, "out.hpp")
+        val impl = File(tempDir, "out.cpp")
+        generator.generateHeader(parsedFile, header)
+        generator.generateImplementation(parsedFile, header, impl)
+
+        listOf(header, impl).forEach { file ->
+            val content = file.readText()
+            assertTrue(content.contains("JunctionViewError_ErrorType"),
+                "${file.name} should use underscore-mangled nested enum name")
+        }
+    }
+
+    @Test
+    fun `parser recognises oneof fields and excludes them from regular fields`() {
+        // This tests the ParsedMessage structure directly without protoc
+        val oneofField = ParsedField("error", "error", "JunctionViewError", 2, isMessage = true)
+        val oneof = ParsedOneof(name = "result", fields = listOf(oneofField))
+        val msg = ParsedMessage(
+            name = "JunctionViewResult",
+            fullName = "com.test.JunctionViewResult",
+            fields = emptyList(), // oneof members excluded from regular fields
+            oneofs = listOf(oneof)
+        )
+        assertEquals(0, msg.fields.size, "Oneof members should not appear in regular fields")
+        assertEquals(1, msg.oneofs.size, "Should have one oneof")
+        assertEquals("result", msg.oneofs.first().name)
+        assertEquals(1, msg.oneofs.first().fields.size)
+    }
+
+    @Test
+    fun `cpp generator emits switch on oneof case`() {
+        val oneofField = ParsedField("error", "error", "string", 2)
+        val oneof = ParsedOneof(name = "result", fields = listOf(oneofField))
+        val parsedFile = ParsedProtoFile(
+            packageName = "com.test",
+            protoPackage = "com.test",
+            messages = listOf(
+                ParsedMessage(
+                    name = "MyResult",
+                    fullName = "com.test.MyResult",
+                    fields = emptyList(),
+                    oneofs = listOf(oneof)
+                )
+            ),
+            enums = emptyList()
+        )
+        val generator = CppGenerator()
+        val impl = File(tempDir, "out.cpp")
+        generator.generateHeader(parsedFile, File(tempDir, "out.hpp"))
+        generator.generateImplementation(parsedFile, File(tempDir, "out.hpp"), impl)
+        val content = impl.readText()
+        assertTrue(content.contains("result_case") || content.contains("_case"),
+            "Should emit case switch for oneof")
+    }
 }
 

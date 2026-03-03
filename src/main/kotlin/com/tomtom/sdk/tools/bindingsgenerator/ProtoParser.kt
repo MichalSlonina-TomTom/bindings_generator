@@ -15,7 +15,13 @@ data class ParsedMessage(
     val fullName: String,
     val fields: List<ParsedField>,
     val nestedMessages: List<ParsedMessage> = emptyList(),
-    val nestedEnums: List<ParsedEnum> = emptyList()
+    val nestedEnums: List<ParsedEnum> = emptyList(),
+    val oneofs: List<ParsedOneof> = emptyList()
+)
+
+data class ParsedOneof(
+    val name: String,
+    val fields: List<ParsedField>
 )
 
 data class ParsedField(
@@ -140,9 +146,35 @@ class ProtoParser {
         val allKnownEnums = knownEnums + nestedEnumNames + allNestedEnums
         val nestedMsgNames = descriptor.nestedTypeList.map { it.name }.toSet()
 
-        val fields = descriptor.fieldList.map { fieldDescriptor ->
+        // Build a set of field indices that belong to a real (non-synthetic) oneof
+        val syntheticOneofCount = descriptor.oneofDeclList.count { oneof ->
+            // synthetic oneofs created by proto3 optional have a single field with proto3Optional=true
+            descriptor.fieldList.count { it.hasOneofIndex() && it.oneofIndex == descriptor.oneofDeclList.indexOf(oneof) } == 1 &&
+            descriptor.fieldList.any { it.hasOneofIndex() && it.oneofIndex == descriptor.oneofDeclList.indexOf(oneof) && it.proto3Optional }
+        }
+        val realOneofCount = descriptor.oneofDeclCount - syntheticOneofCount
+        val oneofMemberIndices = (0 until realOneofCount).flatMap { oneofIdx ->
+            descriptor.fieldList.mapIndexedNotNull { _, f ->
+                if (f.hasOneofIndex() && f.oneofIndex == oneofIdx) f.number else null
+            }
+        }.toSet()
+
+        val allParsedFields = descriptor.fieldList.map { fieldDescriptor ->
             parseField(fieldDescriptor, allKnownEnums, nestedMsgNames)
         }
+
+        // Regular fields: not in a real oneof
+        val fields = allParsedFields.filter { it.number !in oneofMemberIndices }
+
+        // Oneof groups
+        val oneofs = (0 until realOneofCount).map { oneofIdx ->
+            val oneofName = descriptor.oneofDeclList[oneofIdx].name
+            val oneofFields = descriptor.fieldList
+                .filter { it.hasOneofIndex() && it.oneofIndex == oneofIdx }
+                .map { parseField(it, allKnownEnums, nestedMsgNames) }
+            ParsedOneof(name = oneofName, fields = oneofFields)
+        }
+
         val nestedMessages = descriptor.nestedTypeList.map { nested ->
             parseMessage(nested, fullName, allKnownEnums, allNestedEnums)
         }
@@ -155,7 +187,8 @@ class ProtoParser {
             fullName = fullName,
             fields = fields,
             nestedMessages = nestedMessages,
-            nestedEnums = nestedEnums
+            nestedEnums = nestedEnums,
+            oneofs = oneofs
         )
     }
 

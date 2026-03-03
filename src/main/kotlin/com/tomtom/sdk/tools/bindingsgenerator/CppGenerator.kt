@@ -192,9 +192,18 @@ class CppGenerator(private val config: GeneratorConfig = GeneratorConfig.DEFAULT
             appendLine("    $nativeName result;")
             message.fields.forEach { field ->
                 val fieldAccess = generateToNativeFieldMapping(field, allEnums)
-                if (fieldAccess != null) {
-                    appendLine("    $fieldAccess")
+                if (fieldAccess != null) appendLine("    $fieldAccess")
+            }
+            // oneof fields
+            message.oneofs.forEach { oneof ->
+                appendLine("    switch (proto.${oneof.name}_case()) {")
+                oneof.fields.forEach { field ->
+                    val caseLabel = "${protoName}::k${field.name.replaceFirstChar { it.uppercase() }}"
+                    val access = generateToNativeFieldMapping(field, allEnums)
+                    appendLine("        case $caseLabel: result.${field.name} = proto.${field.protoName}(); break;")
                 }
+                appendLine("        default: break;")
+                appendLine("    }")
             }
             appendLine("    return result;")
             appendLine("}")
@@ -213,6 +222,15 @@ class CppGenerator(private val config: GeneratorConfig = GeneratorConfig.DEFAULT
                     } else {
                         appendLine("    $fieldAccess")
                     }
+                }
+            }
+            // oneof fields
+            message.oneofs.forEach { oneof ->
+                oneof.fields.forEach { field ->
+                    val nativeCase = "${nativeName}::k${field.name.replaceFirstChar { it.uppercase() }}"
+                    appendLine("    if (native.${oneof.name}_case == $nativeCase) {")
+                    appendLine("        result.set_${field.protoName}(native.${field.name});")
+                    appendLine("    }")
                 }
             }
             appendLine("    return result;")
@@ -254,7 +272,21 @@ class CppGenerator(private val config: GeneratorConfig = GeneratorConfig.DEFAULT
         }
     }
 
-    private fun getProtoEnumName(enum: ParsedEnum): String = enum.name
+    /**
+     * Returns the C++ type name for a proto enum.
+     * For nested enums protobuf mangles "ParentMessage.EnumName" to "ParentMessage_EnumName".
+     * fullName is e.g. "com.test.JunctionViewError.ErrorType" — take the last two segments
+     * separated by '.' and join with '_'.
+     */
+    private fun getProtoEnumName(enum: ParsedEnum): String {
+        val parts = enum.fullName.split(".")
+        return if (parts.size >= 2 && parts[parts.size - 2][0].isUpperCase()) {
+            // nested: ParentMessage_EnumName
+            "${parts[parts.size - 2]}_${parts.last()}"
+        } else {
+            enum.name
+        }
+    }
 
     private fun getProtoMessageName(message: ParsedMessage): String = message.name
 
