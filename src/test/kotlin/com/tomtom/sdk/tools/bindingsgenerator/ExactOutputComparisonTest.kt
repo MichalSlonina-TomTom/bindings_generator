@@ -388,3 +388,77 @@ class ExactOutputComparisonTest {
     }
 }
 
+/**
+ * Tests that verify the copyright header emitted by both generators is well-formed:
+ * exactly one © symbol, correct year from the OS, "TomTom NV" present.
+ * These tests do NOT require protoc.
+ */
+class CopyrightHeaderTest {
+
+    @TempDir
+    lateinit var tempDir: File
+
+    private val minimalFile = ParsedProtoFile(
+        packageName = "com.test",
+        protoPackage = "com.test",
+        messages = emptyList(),
+        enums = listOf(
+            ParsedEnum("Status", "com.test.Status", listOf(ParsedEnumValue("kStatusOk", 0)))
+        )
+    )
+
+    private fun expectedYear() = java.time.Year.now().value.toString()
+
+    // ── C++ header ────────────────────────────────────────────────────────────
+
+    @Test
+    fun `cpp header contains exactly one copyright symbol`() {
+        val header = File(tempDir, "out.hpp")
+        CppGenerator().generateHeader(minimalFile, header)
+        val text = header.readText()
+        val count = text.split("\u00a9").size - 1
+        assertEquals(1, count, "Expected exactly one © in C++ header, found $count:\n$text")
+    }
+
+    @Test
+    fun `cpp header copyright line has correct format`() {
+        val header = File(tempDir, "out.hpp")
+        CppGenerator().generateHeader(minimalFile, header)
+        val copyrightLine = header.readLines().first { "\u00a9" in it }
+        val expected = " * \u00a9 ${expectedYear()} TomTom NV. All rights reserved."
+        assertEquals(expected, copyrightLine.trimEnd(),
+            "C++ copyright line format is wrong")
+    }
+
+    @Test
+    fun `cpp implementation contains exactly one copyright symbol`() {
+        val header = File(tempDir, "out.hpp")
+        val impl = File(tempDir, "out.cpp")
+        CppGenerator().generateHeader(minimalFile, header)
+        CppGenerator().generateImplementation(minimalFile, header, impl)
+        val count = impl.readText().split("\u00a9").size - 1
+        assertEquals(1, count, "Expected exactly one © in C++ implementation, found $count")
+    }
+
+    // ── Kotlin mapper ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `kotlin mapper contains exactly one copyright symbol`() {
+        KotlinGenerator().generateMapper(minimalFile, tempDir)
+        val kt = tempDir.walkTopDown().first { it.name == "NativeModelMapper.kt" }
+        val count = kt.readText().split("\u00a9").size - 1
+        assertEquals(1, count, "Expected exactly one © in Kotlin mapper, found $count:\n${kt.readText()}")
+    }
+
+    @Test
+    fun `kotlin mapper copyright line has correct format`() {
+        KotlinGenerator().generateMapper(minimalFile, tempDir)
+        val kt = tempDir.walkTopDown().first { it.name == "NativeModelMapper.kt" }
+        // KotlinPoet emits the file comment with "// " prefix on each line
+        val copyrightLine = kt.readLines().first { "\u00a9" in it }
+        val expected = "// \u00a9 ${expectedYear()} TomTom NV. All rights reserved."
+        assertEquals(expected, copyrightLine.trimEnd(),
+            "Kotlin copyright line format is wrong")
+    }
+}
+

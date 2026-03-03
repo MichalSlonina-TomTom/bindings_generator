@@ -1,4 +1,4 @@
-// ©©©© 2026 TomTom NV. All rights reserved.
+// © 2026 TomTom NV. All rights reserved.
 //
 // This software is the proprietary copyright of TomTom NV and its subsidiaries and may be
 // used for internal evaluation purposes or commercial use strictly subject to separate
