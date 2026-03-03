@@ -250,9 +250,7 @@ Text-generation expected files use `© 2022 TomTom NV`.
 Junction-view-engine expected files use `© 2024 TomTom NV`.
 The generator emits `Copyright (C) 2022 TomTom NV` (no Unicode © symbol, hard-coded year).
 
-**Required action:** Make the copyright year (and optionally the copyright symbol style)
-configurable via a CLI option or config, defaulting to the current year or to the value already in
-the generator.
+**Required action:** Use current year, get it from the operating system.
 
 ---
 
