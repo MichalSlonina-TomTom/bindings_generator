@@ -85,8 +85,8 @@ class ExactOutputComparisonTest {
     @Test
     fun `test protobuf_helpers_hpp matches expected output`() {
         // Given: The audio_instruction.proto and text_generation.proto files
-        val audioProtoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
-        val textGenProtoFile = File(javaClass.getResource("/proto/text_generation.proto")!!.file)
+        val audioProtoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
+        val textGenProtoFile = File(javaClass.getResource("/text-generation/proto/text_generation.proto")!!.file)
         val protoDir = audioProtoFile.parentFile
 
         // Note: The actual protobuf_helpers.hpp combines multiple proto files
@@ -121,7 +121,7 @@ class ExactOutputComparisonTest {
     @Test
     fun `test protobuf_helpers_cpp matches expected structure`() {
         // Given: Proto files
-        val audioProtoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
+        val audioProtoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
         val protoDir = audioProtoFile.parentFile
 
         // When: We generate implementation
@@ -153,7 +153,7 @@ class ExactOutputComparisonTest {
     @Test
     fun `test NativeModelMapper_kt matches expected structure`() {
         // Given: Proto files
-        val audioProtoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
+        val audioProtoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
         val protoDir = audioProtoFile.parentFile
 
         // When: We generate Kotlin mapper
@@ -187,7 +187,7 @@ class ExactOutputComparisonTest {
     @Test
     fun `test generated files have consistent formatting`() {
         // Given: Any proto file
-        val protoFile = File(javaClass.getResource("/proto/language.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/language.proto")!!.file)
         val protoDir = protoFile.parentFile
 
         val parser = ProtoParser()
@@ -217,7 +217,7 @@ class ExactOutputComparisonTest {
     @Test
     fun `test enum conversion functions are generated correctly`() {
         // Given: Language.proto with Language enum
-        val protoFile = File(javaClass.getResource("/proto/language.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/language.proto")!!.file)
         val protoDir = protoFile.parentFile
 
         val parser = ProtoParser()
@@ -257,7 +257,7 @@ class ExactOutputComparisonTest {
     @Test
     fun `test message conversion functions handle all field types`() {
         // Given: audio_instruction.proto with complex messages
-        val protoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
         val protoDir = protoFile.parentFile
 
         val parser = ProtoParser()
@@ -288,7 +288,7 @@ class ExactOutputComparisonTest {
         val protoFiles = listOf("language.proto", "audio_instruction.proto", "text_generation.proto")
 
         protoFiles.forEach { protoFileName ->
-            val protoFile = File(javaClass.getResource("/proto/$protoFileName")!!.file)
+            val protoFile = File(javaClass.getResource("/text-generation/proto/$protoFileName")!!.file)
             val protoDir = protoFile.parentFile
 
             // When: We generate code

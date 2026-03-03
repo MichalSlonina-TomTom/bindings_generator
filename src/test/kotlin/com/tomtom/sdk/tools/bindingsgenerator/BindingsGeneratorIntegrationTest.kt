@@ -33,7 +33,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test audio_instruction proto generates expected files`() {
         // Given: The audio_instruction.proto file
-        val protoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
         val protoDir = protoFile.parentFile
         assertTrue(protoFile.exists(), "audio_instruction.proto should exist in test resources")
 
@@ -76,7 +76,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test text_generation proto generates expected files`() {
         // Given: The text_generation.proto file
-        val protoFile = File(javaClass.getResource("/proto/text_generation.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/text_generation.proto")!!.file)
         val protoDir = protoFile.parentFile
         assertTrue(protoFile.exists(), "text_generation.proto should exist in test resources")
 
@@ -102,7 +102,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test language proto generates expected files`() {
         // Given: The language.proto file
-        val protoFile = File(javaClass.getResource("/proto/language.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/language.proto")!!.file)
         val protoDir = protoFile.parentFile
         assertTrue(protoFile.exists(), "language.proto should exist in test resources")
 
@@ -120,7 +120,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test parser handles nested messages correctly`() {
         // Given: A proto file with nested messages
-        val protoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
         val protoDir = protoFile.parentFile
 
         // When: We parse it
@@ -137,7 +137,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test parser handles repeated fields correctly`() {
         // Given: Proto with repeated fields
-        val protoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
         val protoDir = protoFile.parentFile
 
         // When: We parse it
@@ -153,7 +153,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test parser handles enum fields correctly`() {
         // Given: Proto with enum fields
-        val protoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
         val protoDir = protoFile.parentFile
 
         // When: We parse it
@@ -169,7 +169,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test C++ generator creates valid include guards`() {
         // Given: A parsed proto file
-        val protoFile = File(javaClass.getResource("/proto/language.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/language.proto")!!.file)
         val protoDir = protoFile.parentFile
         val parser = ProtoParser()
         val parsedFile = parser.parseProtoFile(protoFile, listOf(protoDir))
@@ -191,7 +191,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test C++ generator includes copyright header`() {
         // Given: Any proto file
-        val protoFile = File(javaClass.getResource("/proto/language.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/language.proto")!!.file)
         val protoDir = protoFile.parentFile
         val parser = ProtoParser()
         val parsedFile = parser.parseProtoFile(protoFile, listOf(protoDir))
@@ -217,7 +217,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test Kotlin generator creates valid package structure`() {
         // Given: A proto with package name
-        val protoFile = File(javaClass.getResource("/proto/language.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/language.proto")!!.file)
         val protoDir = protoFile.parentFile
         val parser = ProtoParser()
         val parsedFile = parser.parseProtoFile(protoFile, listOf(protoDir))
@@ -241,7 +241,7 @@ class BindingsGeneratorIntegrationTest {
     @Test
     fun `test Kotlin generator creates extension functions`() {
         // Given: A proto with messages and enums
-        val protoFile = File(javaClass.getResource("/proto/language.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/language.proto")!!.file)
         val protoDir = protoFile.parentFile
         val parser = ProtoParser()
         val parsedFile = parser.parseProtoFile(protoFile, listOf(protoDir))

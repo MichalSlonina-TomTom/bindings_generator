@@ -38,7 +38,7 @@ class RealProtoFilesTest {
         }
 
         // Given: The real audio_instruction.proto file
-        val protoFile = File(javaClass.getResource("/proto/audio_instruction.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/audio_instruction.proto")!!.file)
         val protoDir = protoFile.parentFile
         assertTrue(protoFile.exists(), "audio_instruction.proto should exist")
 
@@ -83,7 +83,7 @@ class RealProtoFilesTest {
         }
 
         // Given: The real text_generation.proto file
-        val protoFile = File(javaClass.getResource("/proto/text_generation.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/text_generation.proto")!!.file)
         val protoDir = protoFile.parentFile
         assertTrue(protoFile.exists(), "text_generation.proto should exist")
 
@@ -104,7 +104,7 @@ class RealProtoFilesTest {
         }
 
         // Given: The real language.proto file
-        val protoFile = File(javaClass.getResource("/proto/language.proto")!!.file)
+        val protoFile = File(javaClass.getResource("/text-generation/proto/language.proto")!!.file)
         val protoDir = protoFile.parentFile
         assertTrue(protoFile.exists(), "language.proto should exist")
 
@@ -131,7 +131,7 @@ class RealProtoFilesTest {
         val protoFiles = listOf("language.proto", "audio_instruction.proto", "text_generation.proto")
 
         for (protoFileName in protoFiles) {
-            val protoFile = File(javaClass.getResource("/proto/$protoFileName")!!.file)
+            val protoFile = File(javaClass.getResource("/text-generation/proto/$protoFileName")!!.file)
             val protoDir = protoFile.parentFile
 
             // When: We parse and generate
